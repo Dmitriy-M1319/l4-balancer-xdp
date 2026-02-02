@@ -6,9 +6,13 @@
 
 using namespace blncr;
 
+manager::ConfigManager::ConfigManager(std::shared_ptr<IDataplane> dataplane): m_dataplane(dataplane) {}
+
 void manager::ConfigManager::LoadConfig(config::BaseConfig&& config) {
     m_currConfig.reset(new config::BaseConfig(std::move(config)));
-    // call to change XDP services
+    if (m_dataplane) {
+        m_dataplane->ReloadConfig(*m_currConfig);
+    }
 }
 
 bool manager::ConfigManager::Equal(const config::BaseConfig& conf) const {
@@ -27,7 +31,9 @@ void manager::ConfigManager::AddService(const config::BalancerService& service) 
 
         if(srv == m_currConfig->services.end()) {
             m_currConfig->services.push_back(service);
-            // call to change XDP services    
+            if (m_dataplane) {
+                m_dataplane->ReloadConfig(*m_currConfig);
+            }    
         }
     }
 }
@@ -55,6 +61,8 @@ std::optional<std::string> manager::ConfigManager::SetRealState(const command::S
     }
 
     real->enabled = request.enabled;
-    // call to change XDP services
+    if (m_dataplane) {
+        m_dataplane->ReloadConfig(*m_currConfig);
+    }
     return std::nullopt;
 }

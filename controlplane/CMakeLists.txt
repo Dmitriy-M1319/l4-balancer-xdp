@@ -8,11 +8,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 add_subdirectory(tests)
 
 find_package(nlohmann_json REQUIRED)
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+
+find_package(Boost REQUIRED COMPONENTS program_options)
 
 set(CONFIG_SOURCES src/config/jsonparser.cpp
     src/config/fileconfigloader.cpp)
 
-set(MANAGER_SOURCES src/manager/configmanager.cpp)
+set(MANAGER_SOURCES 
+    src/manager/configmanager.cpp
+    src/manager/xdpdataplane.cpp)
 
 set(SOURCES ${CONFIG_SOURCES} ${MANAGER_SOURCES})
 
@@ -21,4 +27,4 @@ set(MANAGER_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/manager)
 
 add_executable(${PROJECT_NAME} main.cpp ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CONFIG_INCLUDES} ${MANAGER_INCLUDES})
-target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json Boost::program_options)

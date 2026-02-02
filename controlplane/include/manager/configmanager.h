@@ -1,6 +1,7 @@
 #pragma once
 
 #include "baseconfig.h"
+#include "idataplane.h"
 #include <memory>
 #include <optional>
 
@@ -21,8 +22,9 @@ namespace manager {
 class ConfigManager {
 private:
     std::unique_ptr<config::BaseConfig> m_currConfig = nullptr;
+    std::shared_ptr<IDataplane> m_dataplane;
 public:
-    ConfigManager() = default;
+    ConfigManager(std::shared_ptr<IDataplane> dataplane = nullptr);
     ConfigManager(const ConfigManager&) = delete;
     ConfigManager& operator=(const ConfigManager&) = delete;
 
