@@ -26,7 +26,6 @@ namespace blncr::config {
 
 class JsonBaseConfigParser : public BaseConfigParser{
 public:
-    std::optional<BaseConfig> Parse(const std::string&) override;
-    std::optional<BaseConfig> Parse(std::string_view) override;
+    std::variant<BaseConfig, std::string> Parse(const std::string&) override;
 };
 }

@@ -2,92 +2,87 @@
 #include "baseconfig.h"
 #include <cstdint>
 #include <nlohmann/json.hpp>
+#include <format>
 
 using namespace blncr::config;
 using json = nlohmann::json;
 
-std::optional<BaseConfig> JsonBaseConfigParser::Parse(const std::string& data) {
-    BaseConfig config;
+std::variant<BaseConfig, std::string> JsonBaseConfigParser::Parse(const std::string& data)
+{
+	try
+	{
+        BaseConfig config;
+		json jdata = json::parse(data);
+		if (!jdata.empty())
+		{
+			auto services = jdata["services"];
+			if (!services.is_null() && services.is_array())
+			{
+				for (const auto& service : services)
+				{
+					if (!service.contains("vip"))
+					{
+						return "vip not found in service";
+					}
 
-    json jdata = json::parse(data);
-    if(!jdata.empty()) {
-        auto services = jdata["services"];
-        if(services.is_array()) {
-            for(const auto& service: services) {
-                if(!service.contains("vip")) {
-                    return std::nullopt;
-                }
-                if(!service.contains("protocol")) {
-                    return std::nullopt;
-                }
-                if(!service.contains("port")) {
-                    return std::nullopt;
-                }
-                auto vip = service["vip"].get<std::string>();
-                auto protocol = service["vip"].get<std::string>();
-                auto port = service["port"].get<uint32_t>();
+					if (!service.contains("protocol"))
+					{
+						return "protocol not found in service";
+					}
 
-                std::vector<BalancerReal> reals;
+					if (!service.contains("port"))
+					{
+						return "port not found in service";
+					}
 
-                if(service.contains("reals")) {
-                    if(service["reals"].is_array()) {
-                        for(const auto& real: service["reals"]) {
-                            auto ip = real["ip"].get<std::string>();
-                            reals.push_back(std::move(BalancerReal{ip, false}));
-                        }
-                    }
-                }
+					if (!service.contains("balancer"))
+					{
+						return "balancer type not found in service";
+					}
+					auto vip = service["vip"].get<std::string>();
+					auto protocol = service["protocol"].get<std::string>();
+					auto port = service["port"].get<uint32_t>();
 
-                BalancerService srv{std::move(reals), vip, protocol, port};
-                config.services.push_back(std::move(srv));
-            }
-        } else {
-            return std::nullopt; // TODO: Move from std::optional to std::variant
-        }
+					auto type_str = service["balancer"].get<std::string>();
+					auto balancer_type = fromString(type_str);
+					if(!balancer_type.has_value()) {
+						return "invalid balancer type";
+					}
+
+					std::vector<BalancerReal> reals;
+
+					if (service.contains("reals"))
+					{
+						if (service["reals"].is_array())
+						{
+							for (const auto& real : service["reals"])
+							{
+								auto ip = real["ip"].get<std::string>();
+								reals.push_back(std::move(BalancerReal{ip, false}));
+							}
+						}
+					}
+					else
+					{
+						return "reals field not found in service or is not an array of elems";
+					}
+
+					BalancerService srv{std::move(reals), vip, protocol, port, balancer_type.value()};
+					config.services.push_back(std::move(srv));
+				}
+			}
+			else
+			{
+				return "services field not found or is not an array of elements";
+			}
+			return config;
+		}
+		else
+		{
+			return "empty config";
+		}
+	} catch(const json::parse_error& err) {
+		auto err_str =  err.what();
+        return std::format("invalid input: {}", err_str);
     }
-
-    return config;
-}
-
-std::optional<BaseConfig> JsonBaseConfigParser::Parse(std::string_view data) {
-    BaseConfig config;
-
-    json jdata = json::parse(data);
-    if(!jdata.empty()) {
-        auto services = jdata["services"];
-        if(services.is_array()) {
-            for(const auto& service: services) {
-                if(!service.contains("vip")) {
-                    return std::nullopt;
-                }
-                if(!service.contains("protocol")) {
-                    return std::nullopt;
-                }
-                if(!service.contains("port")) {
-                    return std::nullopt;
-                }
-                auto vip = service["vip"].get<std::string>();
-                auto protocol = service["vip"].get<std::string>();
-                auto port = service["port"].get<uint32_t>();
-
-                std::vector<BalancerReal> reals;
-
-                if(service.contains("reals")) {
-                    if(service["reals"].is_array()) {
-                        for(const auto& real: service["reals"]) {
-                            auto ip = real["ip"].get<std::string>();
-                            reals.push_back(std::move(BalancerReal{ip, false}));
-                        }
-                    }
-                }
-
-                BalancerService srv{std::move(reals), vip, protocol, port};
-                config.services.push_back(std::move(srv));
-            }
-        } else {
-            return std::nullopt; // TODO: Move from std::optional to std::variant
-        }
-    }
-
-    return config;
 }

@@ -12,9 +12,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
-set(EXTERNAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/fileconfigloader.cpp)
+set(EXTERNAL_SOURCES 
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/fileconfigloader.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/jsonparser.cpp)
 set(EXTERNAL_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/config)
-set(CONFIG_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/config/fileconfigloader_test.cpp)
+set(CONFIG_TESTS 
+  config/fileconfigloader_test.cpp
+  config/jsonparser_test.cpp)
 
 add_executable(
     ${PROJECT_NAME}
