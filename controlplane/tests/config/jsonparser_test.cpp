@@ -37,6 +37,7 @@ TEST(JsonBaseConfigParserTest, ParseNotFullService) {
         {
             "services": [
                 {
+                    "name": "srv1",
                     "proto": "tcp",
                     "port":  32001,
                     "balancer": "rr",
@@ -55,6 +56,7 @@ TEST(JsonBaseConfigParserTest, ParseServiceWithEmptyReals) {
         {
             "services": [
                 {
+                    "name": "srv1",
                     "vip": "192.168.0.1",
                     "protocol": "tcp",
                     "port":  32001,
@@ -67,7 +69,7 @@ TEST(JsonBaseConfigParserTest, ParseServiceWithEmptyReals) {
     blncr::config::JsonBaseConfigParser parser{};
     auto result = parser.Parse(conf);
     blncr::config::BaseConfig expected{.services={
-        blncr::config::BalancerService{.vip="192.168.0.1", .protocol="tcp", .port=32001, .type=blncr::config::BalancerType::RR}
+        blncr::config::BalancerService{.name="srv1", .vip="192.168.0.1", .protocol="tcp", .port=32001, .type=blncr::config::BalancerType::RR}
     }};
     ASSERT_EQ(std::get<blncr::config::BaseConfig>(result), expected);
 }
@@ -77,6 +79,7 @@ TEST(JsonBaseConfigParserTest, ParseNormalService) {
         {
             "services": [
                 {
+                    "name": "srv1",
                     "vip": "192.168.0.1",
                     "protocol": "tcp",
                     "port":  32001,
@@ -98,7 +101,7 @@ TEST(JsonBaseConfigParserTest, ParseNormalService) {
 
     auto reals = {blncr::config::BalancerReal{.ip="10.0.0.1"}, blncr::config::BalancerReal{.ip="10.0.0.2"}};
     blncr::config::BaseConfig expected{.services={
-        blncr::config::BalancerService{.reals=reals, .vip="192.168.0.1", .protocol="tcp", .port=32001, .type=blncr::config::BalancerType::RR}
+        blncr::config::BalancerService{.reals=reals, .name="srv1", .vip="192.168.0.1", .protocol="tcp", .port=32001, .type=blncr::config::BalancerType::RR}
     }};
     ASSERT_EQ(std::get<blncr::config::BaseConfig>(result), expected);
 }
@@ -108,6 +111,7 @@ TEST(JsonBaseConfigParserTest, ParseNormalManyServices) {
         {
             "services": [
                 {
+                    "name": "srv1",
                     "vip": "192.168.0.1",
                     "protocol": "tcp",
                     "port":  32001,
@@ -122,6 +126,7 @@ TEST(JsonBaseConfigParserTest, ParseNormalManyServices) {
                     ]
                 },
                 {
+                    "name": "srv1",
                     "vip": "192.168.0.1",
                     "protocol": "tcp",
                     "port":  32001,
@@ -143,7 +148,8 @@ TEST(JsonBaseConfigParserTest, ParseNormalManyServices) {
 
     auto reals = {blncr::config::BalancerReal{.ip="10.0.0.1"}, blncr::config::BalancerReal{.ip="10.0.0.2"}};
     auto service = blncr::config::BalancerService{
-        .reals=reals, 
+        .reals=reals,
+        .name="srv1",
         .vip="192.168.0.1", 
         .protocol="tcp", 
         .port=32001, 

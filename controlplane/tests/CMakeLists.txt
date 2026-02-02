@@ -14,15 +14,24 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 set(EXTERNAL_SOURCES 
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/fileconfigloader.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/jsonparser.cpp)
-set(EXTERNAL_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/config)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/jsonparser.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/manager/configmanager.cpp)
+
+set(EXTERNAL_HEADERS 
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/config
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/manager)
+
 set(CONFIG_TESTS 
   config/fileconfigloader_test.cpp
   config/jsonparser_test.cpp)
 
+set(MANAGER_TESTS
+  manager/configmanager_test.cpp)
+
 add_executable(
     ${PROJECT_NAME}
     ${CONFIG_TESTS}
+    ${MANAGER_TESTS}
     ${EXTERNAL_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${EXTERNAL_HEADERS})

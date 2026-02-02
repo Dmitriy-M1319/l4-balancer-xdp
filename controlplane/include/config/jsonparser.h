@@ -4,6 +4,7 @@
  --- Balancer Config (for MVP)
  service [
     {
+        name: srv1,
         vip: 192.168.0.1,
         protocol: tcp,
         port: 8501,

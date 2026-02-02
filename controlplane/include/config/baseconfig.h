@@ -41,6 +41,7 @@ struct BalancerReal {
 
 struct BalancerService {
     std::vector<BalancerReal> reals;
+    std::string name;
     std::string vip;
     std::string protocol;
     uint32_t port;
@@ -48,24 +49,25 @@ struct BalancerService {
 
     bool operator==(const BalancerService& srv) const{
         return std::equal(reals.begin(), reals.end(), srv.reals.begin()) 
-            && (vip == srv.vip) && (protocol == srv.protocol)&& (port == srv.port) && (type == srv.type);
+            && (name == srv.name) && (vip == srv.vip) && (protocol == srv.protocol)&& (port == srv.port) && (type == srv.type);
     }
 
     bool operator==(BalancerService&& srv) const {
         return std::equal(reals.begin(), reals.end(), srv.reals.begin()) 
-            && (vip == srv.vip) && (protocol == srv.protocol)&& (port == srv.port) && (type == srv.type);
+            && (name == srv.name) && (vip == srv.vip) && (protocol == srv.protocol)&& (port == srv.port) && (type == srv.type);
     }
 };
 
 struct BaseConfig {
     std::vector<BalancerService> services;
 
+
     bool operator==(const BaseConfig& conf) const {
-        return  std::equal(services.begin(), services.end(), conf.services.begin()); 
+        return std::equal(services.begin(), services.end(), conf.services.begin()); 
     }
 
     bool operator==(BaseConfig&& conf) const {
-        return  std::equal(services.begin(), services.end(), conf.services.begin()); 
+        return std::equal(services.begin(), services.end(), conf.services.begin()); 
     }
 };
 
