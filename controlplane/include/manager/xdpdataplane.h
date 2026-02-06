@@ -1,12 +1,46 @@
 #pragma once
 
 #include "idataplane.h"
+#include <bpf/libbpf.h>
+#include <linux/if_link.h>
+#include <net/if.h>
 
 namespace blncr::manager {
 
 class XdpDataplane : public IDataplane {
+    bpf_object *m_xdpObject = nullptr;
+    bpf_program *m_xdpProgram = nullptr;
+    bpf_link *m_xdpLink= nullptr;
+
+    bpf_map *m_backendsMapFirst = nullptr;
+    bpf_map *m_servicesMapFirst = nullptr;
+    int m_servicesMapFirstFd{};
+    int m_backendsMapFirstFd{};
+
+    bpf_map *m_backendsMapSecond = nullptr;
+    bpf_map *m_servicesMapSecond = nullptr;
+    int m_servicesMapSecondFd{};
+    int m_backendsMapSecondFd{};
+
+    bpf_map *m_atomicIndexMap = nullptr;
+    int m_atomicIndexMapFd{};
+
+    std::string m_progName;
+    std::string m_progInterface;
+    int m_interfaceIdx{};
+
+    bool m_isFirstRun = true;
+
 public:
+    explicit XdpDataplane(const std::string& name, const std::string& iface);
+    ~XdpDataplane();
+
+    std::optional<std::string> RunProgram(const std::string& binName);
     void ReloadConfig(const config::BaseConfig&) override;
+
+    void StopProgram();
+private:
+    bool isValidBpfState() const noexcept;
 };
 
 }

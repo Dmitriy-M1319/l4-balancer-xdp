@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    dataplane = std::make_shared<blncr::manager::XdpDataplane>();
+    dataplane = std::make_shared<blncr::manager::XdpDataplane>("xdp-prog", "eth0"); // TODO: заглушки на названиях
     manager = std::make_unique<blncr::manager::ConfigManager>(dataplane);
 
     std::string data = configLoader->LoadConfig();
