@@ -53,7 +53,8 @@ std::variant<BaseConfig, std::string> JsonBaseConfigParser::Parse(const std::str
 						if (service["reals"].is_array()) {
 							for (const auto& real : service["reals"]) {
 								auto ip = real["ip"].get<std::string>();
-								reals.push_back(std::move(BalancerReal{ip, false}));
+								auto weight = real["weight"].get<uint8_t>();
+								reals.push_back(std::move(BalancerReal{ip, false, weight}));
 							}
 						}
 					}

@@ -32,9 +32,10 @@ inline std::optional<BalancerType> fromString(const std::string& data) {
 struct BalancerReal {
     std::string ip;
     bool enabled;
+    uint8_t weight = 1;
 
     bool operator==(const BalancerReal& real) const {
-        return ip == real.ip;
+        return ip == real.ip && weight == real.weight;
     }
 };
 

@@ -127,6 +127,14 @@ std::optional<std::string> manager::XdpDataplane::RunProgram(const std::string& 
         m_sessionStateMapFd = bpf_map__fd(m_sessionStateMap);    
     }
 
+    auto wrrState = openBpfMap("wrr_state_map");
+    if(std::get_if<std::string>(&wrrState)) {
+        return std::get<std::string>(wrrState);
+    } else {
+        m_wrrStateMap = std::get<bpf_map*>(wrrState);
+        m_wrrStateMapFd = bpf_map__fd(m_wrrStateMap);    
+    }
+
 
     return std::nullopt;
 }
@@ -180,6 +188,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
                 }
                 back.ip = addr.s_addr;
                 back.port = service.port;
+                back.weight = real.weight;
 
                 auto mac = netutils::Arp::Lookup(real.ip, m_progInterface);
                 if(mac.has_value()) {
@@ -255,6 +264,11 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
         std::vector<uint32_t> zeros(xdpKeys.size(), 0);
         if(bpf_map_update_batch(m_rrIndexMapFd, xdpKeys.data(), zeros.data(), &serviceCount,&opts) != 0) {
             return std::format("failed to update rr index on config: {}", strerror(errno));
+        }
+
+        // wrr index reload
+        if(bpf_map_delete_batch(m_wrrStateMapFd, NULL, NULL, NULL) != 0) {
+            return std::format("failed to reload wrr index on config: {}", strerror(errno));
         }
 
         // clear sessions state map

@@ -32,6 +32,9 @@ class XdpDataplane : public IDataplane {
     bpf_map *m_sessionStateMap = nullptr;
     int m_sessionStateMapFd{};
 
+    bpf_map * m_wrrStateMap = nullptr;
+    int m_wrrStateMapFd{};
+
 
     std::string m_progName;
     std::string m_progInterface;
