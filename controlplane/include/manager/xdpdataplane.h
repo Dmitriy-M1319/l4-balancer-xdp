@@ -1,6 +1,7 @@
 #pragma once
 
 #include "idataplane.h"
+#include <variant>
 #include <bpf/libbpf.h>
 #include <linux/if_link.h>
 #include <net/if.h>
@@ -25,6 +26,13 @@ class XdpDataplane : public IDataplane {
     bpf_map *m_atomicIndexMap = nullptr;
     int m_atomicIndexMapFd{};
 
+    bpf_map *m_rrIndexMap = nullptr;
+    int m_rrIndexMapFd{};
+
+    bpf_map *m_sessionStateMap = nullptr;
+    int m_sessionStateMapFd{};
+
+
     std::string m_progName;
     std::string m_progInterface;
     int m_interfaceIdx{};
@@ -36,11 +44,12 @@ public:
     ~XdpDataplane();
 
     std::optional<std::string> RunProgram(const std::string& binName);
-    void ReloadConfig(const config::BaseConfig&) override;
+    std::optional<std::string> ReloadConfig(const config::BaseConfig&) override;
 
     void StopProgram();
 private:
     bool isValidBpfState() const noexcept;
+    std::variant<bpf_map *, std::string> openBpfMap(std::string_view mapName);
 };
 
 }

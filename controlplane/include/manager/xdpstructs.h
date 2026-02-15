@@ -30,6 +30,5 @@ struct ServiceInfo {
     __u8 algorithm;         
     __u8 _pad[3];               // Aligment
 };
-
 }
 }

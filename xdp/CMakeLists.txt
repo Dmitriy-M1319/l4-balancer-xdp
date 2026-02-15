@@ -8,9 +8,9 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdp.bpf.o
     COMMAND clang -O2 -g -target bpf
-            -c ${CMAKE_CURRENT_SOURCE_DIR}/encaper.bpf.c
+            -c ${CMAKE_CURRENT_SOURCE_DIR}/balancer.bpf.c
             -o xdp.bpf.o
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/encaper.bpf.c ${CMAKE_CURRENT_BINARY_DIR}/vmlinux.h
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/balancer.bpf.c ${CMAKE_CURRENT_BINARY_DIR}/vmlinux.h
 )
 
 add_custom_target(xdp ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/xdp.bpf.o ${CMAKE_CURRENT_BINARY_DIR}/vmlinux.h)

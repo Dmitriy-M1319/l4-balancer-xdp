@@ -15,7 +15,6 @@ enum class BalancerType {
     RR,
     WRR,
     CH
-
 };
 
 inline std::optional<BalancerType> fromString(const std::string& data) {

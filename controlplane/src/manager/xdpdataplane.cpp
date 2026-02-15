@@ -11,6 +11,8 @@
 #include <netinet/in.h>
 #include <optional>
 #include <arpa/inet.h>
+#include <string>
+#include <variant>
 
 
 using namespace blncr;
@@ -69,78 +71,87 @@ std::optional<std::string> manager::XdpDataplane::RunProgram(const std::string& 
         return std::format("failed to attach to program {}", m_progName);
     }
     
-    m_backendsMapFirst = bpf_object__find_map_by_name(m_xdpObject, "backends_first");
-    if(!m_backendsMapFirst) {
-        if (m_xdpLink) {
-            bpf_link__destroy(m_xdpLink);
-        }
-        if (m_xdpObject) {
-            bpf_object__close(m_xdpObject);
-        }
-        return std::string{"failed to find map \"backends_first\""};
+    auto backendsFirst = openBpfMap("backends_first");
+    if(std::get_if<std::string>(&backendsFirst)) {
+        return std::get<std::string>(backendsFirst);
+    } else {
+        m_backendsMapFirst = std::get<bpf_map*>(backendsFirst);
+        m_backendsMapFirstFd = bpf_map__fd(m_backendsMapFirst);    
     }
-    m_backendsMapFirstFd = bpf_map__fd(m_backendsMapFirst);
 
-    m_backendsMapSecond = bpf_object__find_map_by_name(m_xdpObject, "backends_second");
-    if(!m_backendsMapSecond) {
-        if (m_xdpLink) {
-            bpf_link__destroy(m_xdpLink);
-        }
-        if (m_xdpObject) {
-            bpf_object__close(m_xdpObject);
-        }
-        return std::string{"failed to find map \"backends_second\""};
+    auto backendsSecond = openBpfMap("backends_second");
+    if(std::get_if<std::string>(&backendsSecond)) {
+        return std::get<std::string>(backendsSecond);
+    } else {
+        m_backendsMapSecond = std::get<bpf_map*>(backendsSecond);
+        m_backendsMapSecondFd = bpf_map__fd(m_backendsMapSecond);    
     }
-    m_backendsMapSecondFd = bpf_map__fd(m_backendsMapSecond);
 
-    m_servicesMapFirst = bpf_object__find_map_by_name(m_xdpObject, "services_first");
-    if(!m_servicesMapFirst) {
-        if (m_xdpLink) {
-            bpf_link__destroy(m_xdpLink);
-        }
-        if (m_xdpObject) {
-            bpf_object__close(m_xdpObject);
-        }
-        return std::string{"failed to find map \"services_first\""};
+    auto servicesFirst = openBpfMap("services_first");
+    if(std::get_if<std::string>(&servicesFirst)) {
+        return std::get<std::string>(servicesFirst);
+    } else {
+        m_servicesMapFirst = std::get<bpf_map*>(servicesFirst);
+        m_servicesMapFirstFd = bpf_map__fd(m_servicesMapFirst);    
     }
-    m_servicesMapFirstFd = bpf_map__fd(m_servicesMapFirst);
 
-    m_servicesMapSecond = bpf_object__find_map_by_name(m_xdpObject, "services_second");
-    if(!m_servicesMapSecond) {
-        if (m_xdpLink) {
-            bpf_link__destroy(m_xdpLink);
-        }
-        if (m_xdpObject) {
-            bpf_object__close(m_xdpObject);
-        }
-        return std::string{"failed to find map \"services_second\""};
+    auto servicesSecond = openBpfMap("services_second");
+    if(std::get_if<std::string>(&servicesSecond)) {
+        return std::get<std::string>(servicesSecond);
+    } else {
+        m_servicesMapSecond = std::get<bpf_map*>(servicesSecond);
+        m_servicesMapSecondFd = bpf_map__fd(m_servicesMapSecond);    
     }
-    m_servicesMapSecondFd = bpf_map__fd(m_servicesMapSecond);
 
-    m_atomicIndexMap = bpf_object__find_map_by_name(m_xdpObject, "atomic_index");
-    if(!m_atomicIndexMap) {
-        if (m_xdpLink) {
-            bpf_link__destroy(m_xdpLink);
-        }
-        if (m_xdpObject) {
-            bpf_object__close(m_xdpObject);
-        }
-        return std::string{"failed to find map \"atomic_index\""};
+    auto atomicIndex = openBpfMap("atomic_index");
+    if(std::get_if<std::string>(&atomicIndex)) {
+        return std::get<std::string>(atomicIndex);
+    } else {
+        m_atomicIndexMap = std::get<bpf_map*>(atomicIndex);
+        m_atomicIndexMapFd = bpf_map__fd(m_atomicIndexMap);    
     }
-    m_atomicIndexMapFd = bpf_map__fd(m_atomicIndexMap);
+
+    auto rrIndex = openBpfMap("rr_index");
+    if(std::get_if<std::string>(&rrIndex)) {
+        return std::get<std::string>(rrIndex);
+    } else {
+        m_rrIndexMap = std::get<bpf_map*>(rrIndex);
+        m_rrIndexMapFd = bpf_map__fd(m_rrIndexMap);    
+    }
+
+    auto sessionState = openBpfMap("tcp_session_state");
+    if(std::get_if<std::string>(&sessionState)) {
+        return std::get<std::string>(sessionState);
+    } else {
+        m_sessionStateMap = std::get<bpf_map*>(sessionState);
+        m_sessionStateMapFd = bpf_map__fd(m_sessionStateMap);    
+    }
+
 
     return std::nullopt;
+}
+
+std::variant<bpf_map *, std::string> manager::XdpDataplane::openBpfMap(std::string_view mapName)
+{
+    bpf_map *map = bpf_object__find_map_by_name(m_xdpObject, mapName.data());
+    if(!map) {
+        if (m_xdpLink) {
+            bpf_link__destroy(m_xdpLink);
+        }
+        if (m_xdpObject) {
+            bpf_object__close(m_xdpObject);
+        }
+        return std::format("failed to find map \"{}\"", mapName);
+    }
+    return map;
 }
 
 bool manager::XdpDataplane::isValidBpfState() const noexcept {
     return m_backendsMapFirst && m_backendsMapSecond && m_atomicIndexMap && m_servicesMapFirst && m_servicesMapSecond;
 }
 
-// TODO: Error handling
-void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
+std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
     if(isValidBpfState()) {
-
-        // TODO: отдельная функция (свободная, потестить)
         std::vector<xdp::Backend> xdpBackends;
         int currentBackendIdx = 0;
         std::vector<xdp::ServiceKey> xdpKeys(config.services.size());
@@ -152,7 +163,7 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
             int result;
             result = inet_aton(service.vip.c_str(), &addr);
             if(result == 0) {
-                return; // error
+                return std::format("failed to prepare VIP {} into bytes", service.vip); // предусмотреть везде debug режим
             }
             xdpKeys.emplace_back(addr.s_addr, service.port, (service.protocol == "tcp" ? IPPROTO_TCP : IPPROTO_UDP), 0);
 
@@ -165,7 +176,7 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
                 int result;
                 result = inet_aton(real.ip.c_str(), &addr);
                 if(result == 0) {
-                    return; // error
+                    return std::format("failed to prepare real IP {} into bytes", real.ip);
                 }
                 back.ip = addr.s_addr;
                 back.port = service.port;
@@ -174,7 +185,7 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
                 if(mac.has_value()) {
                     std::copy(mac->begin(), mac->end(), std::begin(back.mac));
                 } else {
-                    return; // error
+                     return std::format("failed to get MAC address for real IP {} ", real.ip);
                 }
                 back.active = static_cast<unsigned char>(real.enabled);
                 xdpBackends.push_back(std::move(back));
@@ -198,7 +209,7 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
             m_isFirstRun = false;
         } else {
             if(bpf_map_lookup_elem(m_atomicIndexMapFd, &key, &currentIndex) != 0) {
-                return; // error
+                return "failed to load current index for reload config";
             }
         }
 
@@ -220,7 +231,7 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
                                        &backendCount, 
                                        &opts);
         if(ret != 0) {
-            return; // error
+            return std::format("failed to update batch of backends: {}", strerror(errno));
         }
 
         __u32 serviceCount = static_cast<__u32>(xdpKeys.size());
@@ -231,16 +242,29 @@ void manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
                                        &serviceCount,
                                        &opts);
         if(ret != 0) {
-            return; // error
+            return std::format("failed to update batch of services: {}", strerror(errno));
         }
         
         // atomic index change
         int newIndex = 1 - currentIndex;
         if(bpf_map_update_elem(m_atomicIndexMapFd, &key, &newIndex, BPF_ANY) != 0) {
-            return; // error
+            return std::format("failed to update atomic pointer on config: {}", strerror(errno));
         }
 
-        return;
+        // rr index reload
+        std::vector<uint32_t> zeros(xdpKeys.size(), 0);
+        if(bpf_map_update_batch(m_rrIndexMapFd, xdpKeys.data(), zeros.data(), &serviceCount,&opts) != 0) {
+            return std::format("failed to update rr index on config: {}", strerror(errno));
+        }
+
+        // clear sessions state map
+        if(bpf_map_delete_batch(m_sessionStateMapFd, NULL, NULL, NULL) != 0) {
+            return std::format("failed to clear session states on config: {}", strerror(errno));
+        }
+
+        return std::nullopt;
+    } else {
+        return "invalid maps configuration";
     }
 }
 
