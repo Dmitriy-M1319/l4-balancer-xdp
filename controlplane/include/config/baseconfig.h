@@ -17,6 +17,8 @@ enum class BalancerType {
     CH
 };
 
+
+
 inline std::optional<BalancerType> fromString(const std::string& data) {
     if(data == "rr") {
         return BalancerType::RR;
@@ -33,6 +35,7 @@ struct BalancerReal {
     std::string ip;
     bool enabled;
     uint8_t weight = 1;
+    uint8_t ip_version = 4;
 
     bool operator==(const BalancerReal& real) const {
         return ip == real.ip && weight == real.weight;
@@ -46,6 +49,7 @@ struct BalancerService {
     std::string protocol;
     uint32_t port;
     BalancerType type;
+    uint8_t ip_version = 4;
 
     bool operator==(const BalancerService& srv) const{
         return std::equal(reals.begin(), reals.end(), srv.reals.begin()) 

@@ -16,7 +16,8 @@ pkg_check_modules(LIBBPF REQUIRED libbpf)
 find_package(Boost REQUIRED COMPONENTS program_options)
 
 set(CONFIG_SOURCES src/config/jsonparser.cpp
-    src/config/fileconfigloader.cpp)
+    src/config/fileconfigloader.cpp
+    src/config/validator.cpp)
 
 set(MANAGER_SOURCES 
     src/manager/configmanager.cpp
