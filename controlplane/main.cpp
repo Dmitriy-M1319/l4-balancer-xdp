@@ -5,6 +5,7 @@
 #include "fileconfigloader.h"
 #include "idataplane.h"
 #include "jsonparser.h"
+#include "validator.h"
 #include "xdpdataplane.h"
 #include <iostream>
 #include <boost/program_options.hpp>
@@ -81,6 +82,12 @@ int main(int argc, char *argv[]) {
     }
 
     blncr::config::BaseConfig conf = std::get<blncr::config::BaseConfig>(config);
+    auto err = blncr::validators::ConfigValidator::Validate(conf);
+    if(err.has_value()) {
+        std::cout << "Failed to validate config: " << *err << std::endl;
+        return 1;
+    }
+    
     manager->LoadConfig(std::move(conf));
     std::cout << "Manager loads config successfully" << std::endl;
     return 0;

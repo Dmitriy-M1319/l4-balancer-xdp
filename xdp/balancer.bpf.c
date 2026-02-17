@@ -14,10 +14,14 @@
 
 // Key: composition VIP + protocol + port
 struct service_key {
-    __u32 vip;        
+    union {
+        __u32 vip4;       
+        __u8  vip6[16];
+    };    
     __u16 port;       
-    __u8 protocol;    
-    __u8 _pad;        
+    __u8 protocol;
+    __u8 ip_version;  
+    __u8 _pad[4];        
 };
 
 // Service configuration
@@ -51,11 +55,16 @@ struct {
 
 // Real Backend for balancing
 struct backend {
-    __u32 ip;                
+    union {
+        __u32 ipv4;
+        __u8  ipv6[16];
+    };                
     __u16 port;              
     unsigned char mac[6];    
-    __u8 active;             
-    __u8 weight;            
+    __u8 active;
+    __u8 ip_version;             
+    __u8 weight;
+    __u8 pad[2];         
 };
 
 struct {
@@ -97,9 +106,15 @@ struct {
 // TCP Session State (lives 1 minute)
 // Connection Key
 struct session_state_key {
-    __u32 src_ip;                
-    __u16 src_port;
-    __u32 dst_ip;                
+    union {
+        __u32 src_ipv4;
+        __u8 src_ipv6[16];
+    };
+    union {
+        __u32 dst_ipv4;
+        __u8 dst_ipv6[16];
+    };     
+    __u16 src_port;              
     __u16 dst_port; 
 };
 
@@ -117,6 +132,30 @@ struct {
     __type(value, struct session_state_val);
 } tcp_session_state SEC(".maps");
 
+static __always_inline __u32 csum_add_block(const void *data,
+                                             __u32 len) {
+    __u32 sum = 0;
+    const __u16 *ptr = (const __u16 *)data;
+
+    for (int i = 0; i < 750; i++) {
+        if (len < 2) break;
+        sum += *ptr++;
+        len -= 2;
+    }
+
+    if (len == 1) {
+        sum += *(__u8 *)ptr;
+    }
+
+    return sum;
+}
+
+static __always_inline __u16 csum_fold(__u32 sum) {
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    return (__u16)~sum;
+}
+
 static __always_inline __u16 ip_checksum(struct iphdr *ip) {
     __u32 sum = 0;
     __u16 *ptr = (__u16 *)ip;
@@ -131,68 +170,162 @@ static __always_inline __u16 ip_checksum(struct iphdr *ip) {
     return ~sum;
 }
 
-static __always_inline __u16 tcp_udp_checksum(void *data, __u32 len, __u32 saddr, __u32 daddr, __u8 proto) {
-    __u32 sum = 0;
-    __u16 *ptr = (__u16 *)data;
-    int datalen = len;
-    
-    struct pseudo_header {
+static __always_inline __u32 ipv4_pseudo_csum(__u32 saddr,
+                                               __u32 daddr,
+                                               __u8  proto,
+                                               __u16 l4_len) {
+    struct {
         __u32 saddr;
         __u32 daddr;
-        __u8 zero;
-        __u8 proto;
+        __u8  zero;
+        __u8  proto;
         __u16 len;
-    } __attribute__((packed)) pseudo;
-    
-    pseudo.saddr = saddr;
-    pseudo.daddr = daddr;
-    pseudo.zero = 0;
-    pseudo.proto = proto;
-    pseudo.len = bpf_htons(len);
-    
-    ptr = (__u16 *)&pseudo;
-    for (int i = 0; i < sizeof(pseudo) / 2; i++) {
-        sum += ptr[i];
-    }
-    
-    ptr = (__u16 *)data;
-    while (datalen > 1) {
-        sum += *ptr++;
-        datalen -= 2;
-    }
-    
-    if (datalen == 1)
-        sum += *(__u8 *)ptr;
-    
-    sum = (sum >> 16) + (sum & 0xFFFF);
-    sum += (sum >> 16);
-    
-    return (__u16)~sum;
+    } __attribute__((packed)) pseudo = {
+        .saddr = saddr,
+        .daddr = daddr,
+        .zero  = 0,
+        .proto = proto,
+        .len   = bpf_htons(l4_len),
+    };
+
+    return csum_add_block(&pseudo, sizeof(pseudo));
 }
 
-static __always_inline void update_tcp_checksum(struct tcphdr *tcph, struct iphdr *iph, void *data_end) {
-    void *tcp_data = (void *)tcph + (tcph->doff * 4);
-    __u32 tcp_len = (void *)data_end - (void *)tcph;
+static __always_inline __u32 ipv6_pseudo_csum(const __u8 *saddr,
+                                               const __u8 *daddr,
+                                               __u8  nexthdr,
+                                               __u32 l4_len) {
+    struct {
+        __u8  saddr[16];
+        __u8  daddr[16];
+        __u32 len;
+        __u8  zeros[3];
+        __u8  nexthdr;
+    } __attribute__((packed)) pseudo;
+
+    __builtin_memcpy(pseudo.saddr, saddr, 16);
+    __builtin_memcpy(pseudo.daddr, daddr, 16);
+    pseudo.len     = bpf_htonl(l4_len);
+    pseudo.zeros[0] = 0;
+    pseudo.zeros[1] = 0;
+    pseudo.zeros[2] = 0;
+    pseudo.nexthdr  = nexthdr;
+
+    return csum_add_block(&pseudo, sizeof(pseudo));
+}
+
+static __always_inline void update_tcp_checksum_v4(
+    struct tcphdr *tcph,
+    struct iphdr  *iph,
+    void          *data_end)
+{
+    __u32 tcp_len = (__u32)((void *)data_end - (void *)tcph);
+
+    if (tcp_len > 1500) return;
 
     tcph->check = 0;
-    tcph->check = tcp_udp_checksum(tcph, tcp_len, 
-                                   iph->saddr, iph->daddr, 
-                                   IPPROTO_TCP);
+    __u32 sum = ipv4_pseudo_csum(iph->saddr, iph->daddr,
+                                  IPPROTO_TCP, tcp_len);
+    sum += csum_add_block(tcph, tcp_len);
+
+    tcph->check = csum_fold(sum);
 }
 
-static __always_inline void update_udp_checksum(struct udphdr *udph, struct iphdr *iph, void *data_end) {
+
+static __always_inline void update_tcp_checksum_v6(
+    struct tcphdr  *tcph,
+    struct ipv6hdr *ip6h,
+    void           *data_end)
+{
+    __u32 tcp_len = (__u32)((void *)data_end - (void *)tcph);
+
+    if (tcp_len > 1500) return;
+
+    tcph->check = 0;
+
+
+    __u32 sum = ipv6_pseudo_csum(
+        (__u8 *)&ip6h->saddr,
+        (__u8 *)&ip6h->daddr,
+        IPPROTO_TCP,
+        tcp_len);
+    sum += csum_add_block(tcph, tcp_len);
+
+    tcph->check = csum_fold(sum);
+}
+
+static __always_inline void update_udp_checksum_v4(
+    struct udphdr *udph,
+    struct iphdr  *iph,
+    void          *data_end)
+{
+    if (udph->check == 0) return;
+
     __u32 udp_len = bpf_ntohs(udph->len);
-    if (udph->check == 0)
-        return;
-    
+    if (udp_len > 1500) return;
+
     udph->check = 0;
-    udph->check = tcp_udp_checksum(udph, udp_len,
-                                   iph->saddr, iph->daddr,
-                                   IPPROTO_UDP);
-    if (udph->check == 0)
+
+    __u32 sum = ipv4_pseudo_csum(iph->saddr, iph->daddr,
+                                  IPPROTO_UDP, udp_len);
+    sum += csum_add_block(udph, udp_len);
+
+    udph->check = csum_fold(sum);
+
+    if (udph->check == 0) {
         udph->check = 0xFFFF;
+    }
 }
 
+
+static __always_inline void update_udp_checksum_v6(
+    struct udphdr  *udph,
+    struct ipv6hdr *ip6h,
+    void           *data_end)
+{
+    __u32 udp_len = bpf_ntohs(udph->len);
+    if (udp_len > 1500) return;
+
+    udph->check = 0;
+
+    __u32 sum = ipv6_pseudo_csum(
+        (__u8 *)&ip6h->saddr,
+        (__u8 *)&ip6h->daddr,
+        IPPROTO_UDP,
+        udp_len);
+    sum += csum_add_block(udph, udp_len);
+
+    udph->check = csum_fold(sum);
+    if (udph->check == 0) {
+        udph->check = 0xFFFF;
+    }
+}
+
+static __always_inline void update_tcp_checksum(
+    struct tcphdr *tcph,
+    void          *iph,
+    __u8           ip_version,
+    void          *data_end)
+{
+    if (ip_version == 4) {
+        update_tcp_checksum_v4(tcph, (struct iphdr *)iph, data_end);
+    } else if (ip_version == 6) {
+        update_tcp_checksum_v6(tcph, (struct ipv6hdr *)iph, data_end);
+    }
+}
+
+static __always_inline void update_udp_checksum(
+    struct udphdr *udph,
+    void          *iph,
+    __u8           ip_version,
+    void          *data_end)
+{
+    if (ip_version == 4) {
+        update_udp_checksum_v4(udph, (struct iphdr *)iph, data_end);
+    } else if (ip_version == 6) {
+        update_udp_checksum_v6(udph, (struct ipv6hdr *)iph, data_end);
+    }
+}
 
 static __always_inline struct backend *rr_balancer_handle(void *current_back_map, struct service_info *info, struct service_key *key, __u32 *last_index) {
     __u32 *current_index = (__u32 *)bpf_map_lookup_elem(&rr_index, key);
@@ -255,21 +388,21 @@ static __always_inline struct backend *wrr_balancer_handle(void *current_back_ma
 }
 
 
-static __always_inline __u8 tcp_balancer_handle(struct ethhdr *l2_header, struct iphdr *ip_header, struct tcphdr *tcp_header, void *data_end) {
+static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, struct iphdr *ip_header, struct tcphdr *tcp_header, void *data_end) {
     // find service data for balancing
     __u32 dst_ip = ip_header->daddr;
     __u16 dst_port = bpf_ntohs(tcp_header->dest);
     struct service_key key;
     key.port = dst_port;
-    key.vip = dst_ip;
+    key.vip4 = dst_ip;
     key.protocol = IPPROTO_TCP;
 
     struct backend *backend = (struct backend *)0;
     struct session_state_val *state_backend = (struct session_state_val *)0;
     struct session_state_key state_key;
 
-    state_key.src_ip = ip_header->saddr;
-    state_key.dst_ip = ip_header->daddr;
+    state_key.src_ipv4 = ip_header->saddr;
+    state_key.dst_ipv4 = ip_header->daddr;
     state_key.src_port = tcp_header->source;
     state_key.dst_port = tcp_header->dest;
 
@@ -359,22 +492,22 @@ static __always_inline __u8 tcp_balancer_handle(struct ethhdr *l2_header, struct
 
     // Prepare Layers
     __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
-    ip_header->daddr = backend->ip;
+    ip_header->daddr = backend->ipv4;
     tcp_header->dest = bpf_htons(backend->port);
 
     // Calculate checksums
     ip_header->check = 0;
     ip_header->check = ip_checksum(ip_header);
-    update_tcp_checksum(tcp_header, ip_header, data_end);
+    update_tcp_checksum_v4(tcp_header, ip_header, data_end);
     return 0;
 }
 
-static __always_inline int udp_balancer_handle(struct ethhdr *l2_header, struct iphdr *ip_header, struct udphdr *udp_header, void *data_end) {
+static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header, struct iphdr *ip_header, struct udphdr *udp_header, void *data_end) {
     __u32 dst_ip = ip_header->daddr;
     __u16 dst_port = bpf_ntohs(udp_header->dest);
     struct service_key key;
     key.port = dst_port;
-    key.vip = dst_ip;
+    key.vip4 = dst_ip;
     key.protocol = IPPROTO_UDP;
 
     struct backend *backend = (struct backend *)0;
@@ -434,13 +567,197 @@ static __always_inline int udp_balancer_handle(struct ethhdr *l2_header, struct 
 
      // Prepare Layers
     __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
-    ip_header->daddr = backend->ip;
+    ip_header->daddr = backend->ipv4;
     udp_header->dest = bpf_htons(backend->port);
 
     // Calculate checksums
     ip_header->check = 0;
     ip_header->check = ip_checksum(ip_header);
-    update_udp_checksum(udp_header, ip_header, data_end);
+    update_udp_checksum_v4(udp_header, ip_header, data_end);
+    return 0;
+}
+
+static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, struct ipv6hdr *ip_header, struct tcphdr *tcp_header, void *data_end) {
+    // find service data for balancing
+    __u16 dst_port = bpf_ntohs(tcp_header->dest);
+    struct service_key key;
+    key.port = dst_port;
+    __builtin_memcpy(key.vip6, &ip_header->daddr, 16);
+
+    key.protocol = IPPROTO_TCP;
+
+    struct backend *backend = (struct backend *)0;
+    struct session_state_val *state_backend = (struct session_state_val *)0;
+    struct session_state_key state_key;
+
+    __builtin_memcpy(state_key.src_ipv6, &ip_header->saddr, 16);
+    __builtin_memcpy(state_key.dst_ipv6, &ip_header->daddr, 16);
+    state_key.src_port = tcp_header->source;
+    state_key.dst_port = tcp_header->dest;
+
+    
+    __u32 atomic_key = 0;
+    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
+    if(!curr_index) {
+        bpf_printk("xdp: invalid index for services\n");
+        return 3;
+    }
+
+    void *services_map = 0;
+    void *backends_map = 0;
+    if(*curr_index == 0) {
+        services_map = (void *)&services_first;
+        backends_map = (void *)&backends_first;
+    } else {
+        services_map = (void *)&services_second;
+        backends_map = (void *)&backends_second;
+    }
+
+
+    // check firstly in session state map (not TCP SYN)
+    if(!tcp_header->syn) {
+        state_backend = (struct session_state_val *)bpf_map_lookup_elem(&tcp_session_state, &state_key);
+        if(state_backend) {
+            // state finded
+            __u64 now = bpf_ktime_get_ns();
+            if (now - state_backend->created > state_backend->timeout) {
+                // state expired
+                bpf_map_delete_elem(&tcp_session_state, &state_key);
+            } else {
+                state_backend->created = now;
+                backend = (struct backend *)bpf_map_lookup_elem(backends_map, &state_backend->backend_idx);
+            }
+        } 
+    }
+    if(!backend) {
+        struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
+        __u32 state_index;
+        __u32 attempts = 0;
+        if(info) {
+            switch (info->algorithm) {
+                case BALANCER_RR:
+                    do {
+                        backend = rr_balancer_handle(backends_map, info, &key, &state_index);
+                        if (++attempts > info->backend_count) {
+                            backend = (struct backend *)0;
+                            break;
+                        }
+                    } while(backend && !(backend->active));
+                    break;
+                case BALANCER_WRR:
+                    do {
+                        backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
+                        if (++attempts > info->backend_count) {
+                            backend = (struct backend *)0;
+                            break;
+                        }
+                    } while(backend && !(backend->active));
+                    break;
+                default:
+                    return 2;
+            }
+
+            if(!backend) {
+                bpf_printk("xdp: failed to get backend for vip + dst port\n");
+                return 2;
+            }
+        } else {
+            return 2;
+        }
+
+        // new state create
+        struct session_state_val new_state;
+        new_state.backend_idx = state_index;
+        new_state.created = bpf_ktime_get_ns();
+        new_state.timeout = TCP_STATE_TIMEOUT;
+
+        bpf_map_update_elem(&tcp_session_state, &state_key, &new_state, BPF_ANY);
+    }
+
+    // check if TCP FIN or TCP RST (delete session state)
+    if(state_backend && (tcp_header->fin || tcp_header->rst)) {
+        bpf_map_delete_elem(&tcp_session_state, &state_key);
+    }
+
+    // Prepare Layers
+    __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
+    __builtin_memcpy(&ip_header->daddr, backend->ipv6, 16);
+    tcp_header->dest = bpf_htons(backend->port);
+
+    // Calculate checksums
+    update_tcp_checksum_v6(tcp_header, ip_header, data_end);
+    return 0;
+}
+
+static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header, struct ipv6hdr *ip_header, struct udphdr *udp_header, void *data_end) {
+    __u16 dst_port = bpf_ntohs(udp_header->dest);
+    struct service_key key;
+    key.port = dst_port;
+     __builtin_memcpy(key.vip6, &ip_header->daddr, 16);
+    key.protocol = IPPROTO_UDP;
+
+    struct backend *backend = (struct backend *)0;
+
+    __u32 atomic_key = 0;
+    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
+    if(!curr_index) {
+        bpf_printk("xdp: invalid index for services\n");
+        return 3;
+    }
+
+    void *services_map = 0;
+    void *backends_map = 0;
+    if(*curr_index == 0) {
+        services_map = (void *)&services_first;
+        backends_map = (void *)&backends_first;
+    } else {
+        services_map = (void *)&services_second;
+        backends_map = (void *)&backends_second;
+    }
+
+    // no sessions for UDP traffic
+    struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
+    __u32 state_index;
+    __u32 attempts = 0;
+    if(info) {
+        switch (info->algorithm) {
+            case BALANCER_RR:
+                do {
+                    backend = rr_balancer_handle(backends_map, info, &key, &state_index);
+                    if (++attempts > info->backend_count) {
+                        backend = (struct backend *)0;
+                        break;
+                    }
+                } while(backend && !(backend->active));
+                break;
+            case BALANCER_WRR:
+                do {
+                    backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
+                    if (++attempts > info->backend_count) {
+                        backend = (struct backend *)0;
+                        break;
+                    }
+                } while(backend && !(backend->active));
+                break;
+            default:
+                return 2;
+        }
+
+        if(!backend) {
+            bpf_printk("xdp: failed to get backend for vip + dst port\n");
+            return 2;
+        }
+    } else {
+        return 2;
+    }
+
+     // Prepare Layers
+    __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
+    __builtin_memcpy(&ip_header->daddr, backend->ipv6, 16);
+    udp_header->dest = bpf_htons(backend->port);
+
+    // Calculate checksums
+    update_udp_checksum_v6(udp_header, ip_header, data_end);
     return 0;
 }
 
@@ -489,7 +806,7 @@ int balancer_handler(struct xdp_md *ctx)
                 return XDP_PASS;
             }
 
-            __u8 result = tcp_balancer_handle(eth, ip, tcp, data_end);
+            __u8 result = tcp_balancer_handle_v4(eth, ip, tcp, data_end);
             if(result > 0) {
                 bpf_printk("xdp: failed to redirect TCP packet\n");
                 return XDP_PASS;
@@ -504,7 +821,7 @@ int balancer_handler(struct xdp_md *ctx)
                 return XDP_PASS;
             }
             
-            __u8 result = udp_balancer_handle(eth, ip, udp, data_end);
+            __u8 result = udp_balancer_handle_v4(eth, ip, udp, data_end);
             if(result > 0) {
                 bpf_printk("xdp: failed to redirect UDP packet\n");
                 return XDP_PASS;

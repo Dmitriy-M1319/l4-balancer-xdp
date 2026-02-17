@@ -7,19 +7,29 @@ namespace xdp {
 
 /// Real server
 struct Backend {
-    __u32 ip;                
+    union {
+        __u32 ipv4;
+        __u8 ipv6[16];  
+    };
+                  
     __u16 port;              
     unsigned char mac[6]; 
-    __u8 active;             
-    __u8 weight;         
+    __u8 active;
+    __u8 ip_version;           
+    __u8 weight;       
+    __u8 pad[2];  
 };
 
 /// Map key: composition VIP + protocol + port
 struct ServiceKey {
-    __u32 vip;        
+    union {
+        __u32 vip4;
+        __u8 vip6[16];  
+    };       
     __u16 port;       
-    __u8 protocol;    
-    __u8 _pad;        // Aligment
+    __u8 protocol;  
+    __u8 ip_version;  
+    __u8 _pad[4];        // Aligment
 };
 
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "baseconfig.h"
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -10,6 +12,18 @@
 #include <unordered_set>
 
 namespace blncr {
+
+namespace utils {
+
+inline void trim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+
+
+}
 
 namespace validators {
 
@@ -53,6 +67,11 @@ public:
             } else {
                 return std::format("invalid VIP address for service: {}", service.vip);
             }
+
+            utils::trim(service.protocol);
+            std::transform(service.protocol.begin(), service.protocol.end(), service.protocol.begin(),
+                   [](unsigned char c){ return std::tolower(c); }
+            );
 
             if(service.protocol != "tcp" && service.protocol != "udp") {
                 return std::format("invalid L4 layer protocol: {}", service.protocol);

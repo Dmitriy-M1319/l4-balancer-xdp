@@ -12,6 +12,7 @@
 #include <optional>
 #include <arpa/inet.h>
 #include <string>
+#include <sys/socket.h>
 #include <variant>
 
 
@@ -167,26 +168,51 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 
         for(const auto& service: config.services) {
             // 1. Key preparing
-            struct in_addr addr;
-            int result;
-            result = inet_aton(service.vip.c_str(), &addr);
-            if(result == 0) {
-                return std::format("failed to prepare VIP {} into bytes", service.vip); // предусмотреть везде debug режим
+            xdp::ServiceKey key {
+                .port = __u16(service.port),
+                .protocol = __u8(service.protocol == "tcp" ? IPPROTO_TCP : IPPROTO_UDP),
+                .ip_version = 4
+            };
+
+            if(service.ip_version == 4) {
+                struct in_addr addr;
+                if(inet_aton(service.vip.c_str(), &addr) == 0) {
+                    return std::format("failed to prepare VIP {} into bytes", service.vip); // предусмотреть везде debug режим
+                }
+                key.vip4 = addr.s_addr;
+                key.ip_version = 4;
+            } else {
+                struct in6_addr addr;
+                if(inet_pton(AF_INET6, service.vip.c_str(), &addr) == 0) {
+                    return std::format("failed to prepare VIP {} into bytes", service.vip);
+                }
+                memcpy(key.vip6, &addr, 16);
+                key.ip_version = 6;
             }
-            xdpKeys.emplace_back(addr.s_addr, service.port, (service.protocol == "tcp" ? IPPROTO_TCP : IPPROTO_UDP), 0);
+
+            xdpKeys.push_back(std::move(key));
 
             // 2. Balancers Preparing
             int count = 0;
             for(const auto& real: service.reals) {
                 xdp::Backend back;
 
-                struct in_addr addr;
-                int result;
-                result = inet_aton(real.ip.c_str(), &addr);
-                if(result == 0) {
-                    return std::format("failed to prepare real IP {} into bytes", real.ip);
+                if(real.ip_version == 4) {
+                    struct in_addr addr;
+                    if(inet_aton(real.ip.c_str(), &addr) == 0) {
+                        return std::format("failed to prepare real IP {} into bytes", real.ip);
+                    }
+                    back.ipv4 = addr.s_addr;
+                    back.ip_version = 4;
+                } else {
+                    struct in6_addr addr;
+                    if(inet_pton(AF_INET6, real.ip.c_str(), &addr) == 0) {
+                        return std::format("failed to prepare real IP {} into bytes", real.ip);
+                    }
+                    memcpy(back.ipv6, &addr, 16);
+                    back.ip_version = 6;
                 }
-                back.ip = addr.s_addr;
+
                 back.port = service.port;
                 back.weight = real.weight;
 
