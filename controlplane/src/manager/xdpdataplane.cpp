@@ -1,6 +1,8 @@
 #include "xdpdataplane.h"
 #include "arp.h"
+#include "ndp.h"
 #include "xdpstructs.h"
+#include <array>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <cerrno>
@@ -216,7 +218,13 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
                 back.port = service.port;
                 back.weight = real.weight;
 
-                auto mac = netutils::Arp::Lookup(real.ip, m_progInterface);
+                std::optional<std::array<uint8_t, 6>> mac;
+                if(real.ip_version == 4) {
+                    mac = netutils::Arp::Lookup(real.ip, m_progInterface);
+                } else {
+                    mac = netutils::Ndp::Lookup(real.ip, m_progInterface);
+                }
+                
                 if(mac.has_value()) {
                     std::copy(mac->begin(), mac->end(), std::begin(back.mac));
                 } else {

@@ -132,6 +132,9 @@ struct {
     __type(value, struct session_state_val);
 } tcp_session_state SEC(".maps");
 
+
+
+
 static __always_inline __u32 csum_add_block(const void *data,
                                              __u32 len) {
     __u32 sum = 0;
@@ -150,11 +153,15 @@ static __always_inline __u32 csum_add_block(const void *data,
     return sum;
 }
 
+
+
 static __always_inline __u16 csum_fold(__u32 sum) {
     sum = (sum >> 16) + (sum & 0xffff);
     sum += (sum >> 16);
     return (__u16)~sum;
 }
+
+
 
 static __always_inline __u16 ip_checksum(struct iphdr *ip) {
     __u32 sum = 0;
@@ -169,6 +176,8 @@ static __always_inline __u16 ip_checksum(struct iphdr *ip) {
     sum += (sum >> 16);
     return ~sum;
 }
+
+
 
 static __always_inline __u32 ipv4_pseudo_csum(__u32 saddr,
                                                __u32 daddr,
@@ -190,6 +199,8 @@ static __always_inline __u32 ipv4_pseudo_csum(__u32 saddr,
 
     return csum_add_block(&pseudo, sizeof(pseudo));
 }
+
+
 
 static __always_inline __u32 ipv6_pseudo_csum(const __u8 *saddr,
                                                const __u8 *daddr,
@@ -214,6 +225,8 @@ static __always_inline __u32 ipv6_pseudo_csum(const __u8 *saddr,
     return csum_add_block(&pseudo, sizeof(pseudo));
 }
 
+
+
 static __always_inline void update_tcp_checksum_v4(
     struct tcphdr *tcph,
     struct iphdr  *iph,
@@ -230,6 +243,7 @@ static __always_inline void update_tcp_checksum_v4(
 
     tcph->check = csum_fold(sum);
 }
+
 
 
 static __always_inline void update_tcp_checksum_v6(
@@ -253,6 +267,8 @@ static __always_inline void update_tcp_checksum_v6(
 
     tcph->check = csum_fold(sum);
 }
+
+
 
 static __always_inline void update_udp_checksum_v4(
     struct udphdr *udph,
@@ -278,6 +294,7 @@ static __always_inline void update_udp_checksum_v4(
 }
 
 
+
 static __always_inline void update_udp_checksum_v6(
     struct udphdr  *udph,
     struct ipv6hdr *ip6h,
@@ -301,6 +318,8 @@ static __always_inline void update_udp_checksum_v6(
     }
 }
 
+
+
 static __always_inline void update_tcp_checksum(
     struct tcphdr *tcph,
     void          *iph,
@@ -313,6 +332,8 @@ static __always_inline void update_tcp_checksum(
         update_tcp_checksum_v6(tcph, (struct ipv6hdr *)iph, data_end);
     }
 }
+
+
 
 static __always_inline void update_udp_checksum(
     struct udphdr *udph,
@@ -327,7 +348,13 @@ static __always_inline void update_udp_checksum(
     }
 }
 
-static __always_inline struct backend *rr_balancer_handle(void *current_back_map, struct service_info *info, struct service_key *key, __u32 *last_index) {
+
+
+static __always_inline struct backend *rr_balancer_handle(void *current_back_map, 
+                                                            struct service_info *info, 
+                                                            struct service_key *key, 
+                                                            __u32 *last_index) 
+{
     __u32 *current_index = (__u32 *)bpf_map_lookup_elem(&rr_index, key);
     if(current_index) {
         __u32 new_index = *current_index + 1;
@@ -344,7 +371,13 @@ static __always_inline struct backend *rr_balancer_handle(void *current_back_map
     }
 }
 
-static __always_inline struct backend *wrr_balancer_handle(void *current_back_map, struct service_info *info, struct service_key *key, __u32 *last_index) {
+
+
+static __always_inline struct backend *wrr_balancer_handle(void *current_back_map, 
+                                                            struct service_info *info, 
+                                                            struct service_key *key, 
+                                                            __u32 *last_index) 
+{
     struct wrr_state *state = (struct wrr_state *)bpf_map_lookup_elem(&wrr_state_map, key);
     if (!state) {
         struct wrr_state new_state = {
@@ -388,30 +421,18 @@ static __always_inline struct backend *wrr_balancer_handle(void *current_back_ma
 }
 
 
-static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, struct iphdr *ip_header, struct tcphdr *tcp_header, void *data_end) {
-    // find service data for balancing
-    __u32 dst_ip = ip_header->daddr;
-    __u16 dst_port = bpf_ntohs(tcp_header->dest);
-    struct service_key key;
-    key.port = dst_port;
-    key.vip4 = dst_ip;
-    key.protocol = IPPROTO_TCP;
 
-    struct backend *backend = (struct backend *)0;
+static __always_inline struct backend *find_tcp_backend(struct session_state_key *state_key, 
+                                                        struct service_key *key,
+                                                        struct tcphdr *tcp) 
+{
     struct session_state_val *state_backend = (struct session_state_val *)0;
-    struct session_state_key state_key;
-
-    state_key.src_ipv4 = ip_header->saddr;
-    state_key.dst_ipv4 = ip_header->daddr;
-    state_key.src_port = tcp_header->source;
-    state_key.dst_port = tcp_header->dest;
-
-    
+    struct backend *backend = (struct backend *)0;
     __u32 atomic_key = 0;
     __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
     if(!curr_index) {
         bpf_printk("xdp: invalid index for services\n");
-        return 3;
+        return (struct backend *)0;
     }
 
     void *services_map = 0;
@@ -426,7 +447,7 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
 
 
     // check firstly in session state map (not TCP SYN)
-    if(!tcp_header->syn) {
+    if(!tcp->syn) {
         state_backend = (struct session_state_val *)bpf_map_lookup_elem(&tcp_session_state, &state_key);
         if(state_backend) {
             // state finded
@@ -441,14 +462,14 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
         } 
     }
     if(!backend) {
-        struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
+        struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, key);
         __u32 state_index;
         __u32 attempts = 0;
         if(info) {
             switch (info->algorithm) {
                 case BALANCER_RR:
                     do {
-                        backend = rr_balancer_handle(backends_map, info, &key, &state_index);
+                        backend = rr_balancer_handle(backends_map, info, key, &state_index);
                         if (++attempts > info->backend_count) {
                             backend = (struct backend *)0;
                             break;
@@ -457,7 +478,7 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
                     break;
                 case BALANCER_WRR:
                     do {
-                        backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
+                        backend = wrr_balancer_handle(backends_map, info, key, &state_index);
                         if (++attempts > info->backend_count) {
                             backend = (struct backend *)0;
                             break;
@@ -465,15 +486,15 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
                     } while(backend && !(backend->active));
                     break;
                 default:
-                    return 2;
+                    return (struct backend *)0;
             }
 
             if(!backend) {
                 bpf_printk("xdp: failed to get backend for vip + dst port\n");
-                return 2;
+                return (struct backend *)0;
             }
         } else {
-            return 2;
+            return (struct backend *)0;
         }
 
         // new state create
@@ -486,8 +507,102 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
     }
 
     // check if TCP FIN or TCP RST (delete session state)
-    if(state_backend && (tcp_header->fin || tcp_header->rst)) {
+    if(state_backend && (tcp->fin || tcp->rst)) {
         bpf_map_delete_elem(&tcp_session_state, &state_key);
+    }
+
+    return backend;
+}
+
+
+
+static __always_inline struct backend *find_udp_backend(struct service_key *key) 
+{
+    struct backend *backend = (struct backend *)0;
+    __u32 atomic_key = 0;
+    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
+    if(!curr_index) {
+        bpf_printk("xdp: invalid index for services\n");
+        return (struct backend *)0;
+    }
+
+    void *services_map = 0;
+    void *backends_map = 0;
+    if(*curr_index == 0) {
+        services_map = (void *)&services_first;
+        backends_map = (void *)&backends_first;
+    } else {
+        services_map = (void *)&services_second;
+        backends_map = (void *)&backends_second;
+    }
+
+    // no sessions for UDP traffic
+    struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, key);
+    __u32 state_index;
+    __u32 attempts = 0;
+    if(info) {
+        switch (info->algorithm) {
+            case BALANCER_RR:
+                do {
+                    backend = rr_balancer_handle(backends_map, info, key, &state_index);
+                    if (++attempts > info->backend_count) {
+                        backend = (struct backend *)0;
+                        break;
+                    }
+                } while(backend && !(backend->active));
+                break;
+            case BALANCER_WRR:
+                do {
+                    backend = wrr_balancer_handle(backends_map, info, key, &state_index);
+                    if (++attempts > info->backend_count) {
+                        backend = (struct backend *)0;
+                        break;
+                    }
+                } while(backend && !(backend->active));
+                break;
+            default:
+                return (struct backend *)0;
+        }
+
+        if(!backend) {
+            bpf_printk("xdp: failed to get backend for vip + dst port\n");
+            return (struct backend *)0;
+        }
+    } else {
+        return (struct backend *)0;
+    }
+
+    return backend;
+}
+
+
+
+static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, 
+                                                    struct iphdr *ip_header, 
+                                                    struct tcphdr *tcp_header, 
+                                                    void *data_end) 
+{
+    // find service data for balancing
+    __u32 dst_ip = ip_header->daddr;
+    __u16 dst_port = bpf_ntohs(tcp_header->dest);
+    struct service_key key;
+    key.port = dst_port;
+    key.vip4 = dst_ip;
+    key.protocol = IPPROTO_TCP;
+    key.ip_version = 4;
+
+    struct backend *backend = (struct backend *)0;
+    struct session_state_val *state_backend = (struct session_state_val *)0;
+    struct session_state_key state_key;
+
+    state_key.src_ipv4 = ip_header->saddr;
+    state_key.dst_ipv4 = ip_header->daddr;
+    state_key.src_port = tcp_header->source;
+    state_key.dst_port = tcp_header->dest;
+
+    backend = find_tcp_backend(&state_key, &key, tcp_header);
+    if(!backend) {
+        return 3;
     }
 
     // Prepare Layers
@@ -502,67 +617,24 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header, str
     return 0;
 }
 
-static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header, struct iphdr *ip_header, struct udphdr *udp_header, void *data_end) {
+
+
+static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header, 
+                                                    struct iphdr *ip_header, 
+                                                    struct udphdr *udp_header, 
+                                                    void *data_end) 
+{
     __u32 dst_ip = ip_header->daddr;
     __u16 dst_port = bpf_ntohs(udp_header->dest);
     struct service_key key;
     key.port = dst_port;
     key.vip4 = dst_ip;
     key.protocol = IPPROTO_UDP;
+    key.ip_version = 4;
 
-    struct backend *backend = (struct backend *)0;
-
-    __u32 atomic_key = 0;
-    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
-    if(!curr_index) {
-        bpf_printk("xdp: invalid index for services\n");
+    struct backend *backend = find_udp_backend(&key);
+    if(!backend) {
         return 3;
-    }
-
-    void *services_map = 0;
-    void *backends_map = 0;
-    if(*curr_index == 0) {
-        services_map = (void *)&services_first;
-        backends_map = (void *)&backends_first;
-    } else {
-        services_map = (void *)&services_second;
-        backends_map = (void *)&backends_second;
-    }
-
-    // no sessions for UDP traffic
-    struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
-    __u32 state_index;
-    __u32 attempts = 0;
-    if(info) {
-        switch (info->algorithm) {
-            case BALANCER_RR:
-                do {
-                    backend = rr_balancer_handle(backends_map, info, &key, &state_index);
-                    if (++attempts > info->backend_count) {
-                        backend = (struct backend *)0;
-                        break;
-                    }
-                } while(backend && !(backend->active));
-                break;
-            case BALANCER_WRR:
-                do {
-                    backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
-                    if (++attempts > info->backend_count) {
-                        backend = (struct backend *)0;
-                        break;
-                    }
-                } while(backend && !(backend->active));
-                break;
-            default:
-                return 2;
-        }
-
-        if(!backend) {
-            bpf_printk("xdp: failed to get backend for vip + dst port\n");
-            return 2;
-        }
-    } else {
-        return 2;
     }
 
      // Prepare Layers
@@ -577,7 +649,12 @@ static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header, stru
     return 0;
 }
 
-static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, struct ipv6hdr *ip_header, struct tcphdr *tcp_header, void *data_end) {
+
+static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, 
+                                                    struct ipv6hdr *ip_header, 
+                                                    struct tcphdr *tcp_header, 
+                                                    void *data_end) 
+{
     // find service data for balancing
     __u16 dst_port = bpf_ntohs(tcp_header->dest);
     struct service_key key;
@@ -585,6 +662,7 @@ static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, str
     __builtin_memcpy(key.vip6, &ip_header->daddr, 16);
 
     key.protocol = IPPROTO_TCP;
+    key.ip_version = 6;
 
     struct backend *backend = (struct backend *)0;
     struct session_state_val *state_backend = (struct session_state_val *)0;
@@ -595,88 +673,9 @@ static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, str
     state_key.src_port = tcp_header->source;
     state_key.dst_port = tcp_header->dest;
 
-    
-    __u32 atomic_key = 0;
-    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
-    if(!curr_index) {
-        bpf_printk("xdp: invalid index for services\n");
-        return 3;
-    }
-
-    void *services_map = 0;
-    void *backends_map = 0;
-    if(*curr_index == 0) {
-        services_map = (void *)&services_first;
-        backends_map = (void *)&backends_first;
-    } else {
-        services_map = (void *)&services_second;
-        backends_map = (void *)&backends_second;
-    }
-
-
-    // check firstly in session state map (not TCP SYN)
-    if(!tcp_header->syn) {
-        state_backend = (struct session_state_val *)bpf_map_lookup_elem(&tcp_session_state, &state_key);
-        if(state_backend) {
-            // state finded
-            __u64 now = bpf_ktime_get_ns();
-            if (now - state_backend->created > state_backend->timeout) {
-                // state expired
-                bpf_map_delete_elem(&tcp_session_state, &state_key);
-            } else {
-                state_backend->created = now;
-                backend = (struct backend *)bpf_map_lookup_elem(backends_map, &state_backend->backend_idx);
-            }
-        } 
-    }
+    backend = find_tcp_backend(&state_key, &key, tcp_header);
     if(!backend) {
-        struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
-        __u32 state_index;
-        __u32 attempts = 0;
-        if(info) {
-            switch (info->algorithm) {
-                case BALANCER_RR:
-                    do {
-                        backend = rr_balancer_handle(backends_map, info, &key, &state_index);
-                        if (++attempts > info->backend_count) {
-                            backend = (struct backend *)0;
-                            break;
-                        }
-                    } while(backend && !(backend->active));
-                    break;
-                case BALANCER_WRR:
-                    do {
-                        backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
-                        if (++attempts > info->backend_count) {
-                            backend = (struct backend *)0;
-                            break;
-                        }
-                    } while(backend && !(backend->active));
-                    break;
-                default:
-                    return 2;
-            }
-
-            if(!backend) {
-                bpf_printk("xdp: failed to get backend for vip + dst port\n");
-                return 2;
-            }
-        } else {
-            return 2;
-        }
-
-        // new state create
-        struct session_state_val new_state;
-        new_state.backend_idx = state_index;
-        new_state.created = bpf_ktime_get_ns();
-        new_state.timeout = TCP_STATE_TIMEOUT;
-
-        bpf_map_update_elem(&tcp_session_state, &state_key, &new_state, BPF_ANY);
-    }
-
-    // check if TCP FIN or TCP RST (delete session state)
-    if(state_backend && (tcp_header->fin || tcp_header->rst)) {
-        bpf_map_delete_elem(&tcp_session_state, &state_key);
+        return 3;
     }
 
     // Prepare Layers
@@ -689,69 +688,26 @@ static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header, str
     return 0;
 }
 
-static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header, struct ipv6hdr *ip_header, struct udphdr *udp_header, void *data_end) {
+
+
+static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header, 
+                                                    struct ipv6hdr *ip_header, 
+                                                    struct udphdr *udp_header, 
+                                                    void *data_end) 
+{
     __u16 dst_port = bpf_ntohs(udp_header->dest);
     struct service_key key;
     key.port = dst_port;
-     __builtin_memcpy(key.vip6, &ip_header->daddr, 16);
+    __builtin_memcpy(key.vip6, &ip_header->daddr, 16);
     key.protocol = IPPROTO_UDP;
+    key.ip_version = 6;
 
-    struct backend *backend = (struct backend *)0;
-
-    __u32 atomic_key = 0;
-    __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
-    if(!curr_index) {
-        bpf_printk("xdp: invalid index for services\n");
+    struct backend *backend = find_udp_backend(&key);
+    if(!backend) {
         return 3;
     }
 
-    void *services_map = 0;
-    void *backends_map = 0;
-    if(*curr_index == 0) {
-        services_map = (void *)&services_first;
-        backends_map = (void *)&backends_first;
-    } else {
-        services_map = (void *)&services_second;
-        backends_map = (void *)&backends_second;
-    }
-
-    // no sessions for UDP traffic
-    struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, &key);
-    __u32 state_index;
-    __u32 attempts = 0;
-    if(info) {
-        switch (info->algorithm) {
-            case BALANCER_RR:
-                do {
-                    backend = rr_balancer_handle(backends_map, info, &key, &state_index);
-                    if (++attempts > info->backend_count) {
-                        backend = (struct backend *)0;
-                        break;
-                    }
-                } while(backend && !(backend->active));
-                break;
-            case BALANCER_WRR:
-                do {
-                    backend = wrr_balancer_handle(backends_map, info, &key, &state_index);
-                    if (++attempts > info->backend_count) {
-                        backend = (struct backend *)0;
-                        break;
-                    }
-                } while(backend && !(backend->active));
-                break;
-            default:
-                return 2;
-        }
-
-        if(!backend) {
-            bpf_printk("xdp: failed to get backend for vip + dst port\n");
-            return 2;
-        }
-    } else {
-        return 2;
-    }
-
-     // Prepare Layers
+    // Prepare Layers
     __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
     __builtin_memcpy(&ip_header->daddr, backend->ipv6, 16);
     udp_header->dest = bpf_htons(backend->port);
@@ -760,6 +716,7 @@ static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header, stru
     update_udp_checksum_v6(udp_header, ip_header, data_end);
     return 0;
 }
+
 
 
 SEC("xdp")
@@ -831,8 +788,51 @@ int balancer_handler(struct xdp_md *ctx)
         } else {            
             return XDP_PASS;
         }
+    } else if(eth->h_proto == bpf_htons(ETH_P_IPV6)) {
+        struct ipv6hdr *ip6 = (void *)(eth + 1);
+        if ((void *)(ip6 + 1) > data_end) {
+            bpf_printk("xdp: failed to parse ipv6 hdr\n");
+            return XDP_PASS;
+        }
+        
+        __u8 nexthdr = ip6->nexthdr;
+        void *transport = (void *)(ip6 + 1);
+        
+        if (nexthdr == IPPROTO_TCP) {
+            struct tcphdr *tcp = (struct tcphdr *)transport;
+            if ((void *)(tcp + 1) > data_end) {
+                bpf_printk("xdp: failed to parse tcp hdr\n");
+                return XDP_PASS;
+            }
+
+            __u8 result = tcp_balancer_handle_v6(eth, ip6, tcp, data_end);
+            if(result > 0) {
+                bpf_printk("xdp: failed to redirect TCP packet\n");
+                return XDP_PASS;
+            } else {
+                return XDP_TX;
+            }
+           
+        } else if (nexthdr == IPPROTO_UDP) {
+            struct udphdr *udp = (struct udphdr *)transport;
+            if ((void *)(udp + 1) > data_end) {
+                bpf_printk("xdp: failed to parse udp hdr\n");
+                return XDP_PASS;
+            }
+            
+            __u8 result = udp_balancer_handle_v6(eth, ip6, udp, data_end);
+            if(result > 0) {
+                bpf_printk("xdp: failed to redirect UDP packet\n");
+                return XDP_PASS;
+            } else {
+                return XDP_TX;
+            }
+        } else {            
+            return XDP_PASS;
+        }
     }
     return XDP_PASS;
 }
+
 
 char _license[] SEC("license") = "GPL";

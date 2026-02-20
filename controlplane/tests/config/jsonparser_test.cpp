@@ -86,10 +86,12 @@ TEST(JsonBaseConfigParserTest, ParseNormalService) {
                     "balancer": "rr",
                     "reals": [
                         {
-                            "ip": "10.0.0.1"
+                            "ip": "10.0.0.1",
+                            "weight": 1
                         },
                         {
-                            "ip": "10.0.0.2"
+                            "ip": "10.0.0.2",
+                            "weight": 1
                         }
                     ]
                 }
@@ -118,10 +120,12 @@ TEST(JsonBaseConfigParserTest, ParseNormalManyServices) {
                     "balancer": "rr",
                     "reals": [
                         {
-                            "ip": "10.0.0.1"
+                            "ip": "10.0.0.1",
+                            "weight": 1
                         },
                         {
-                            "ip": "10.0.0.2"
+                            "ip": "10.0.0.2",
+                            "weight": 1
                         }
                     ]
                 },
@@ -133,10 +137,12 @@ TEST(JsonBaseConfigParserTest, ParseNormalManyServices) {
                     "balancer": "rr",
                     "reals": [
                         {
-                            "ip": "10.0.0.1"
+                            "ip": "10.0.0.1",
+                            "weight": 1
                         },
                         {
-                            "ip": "10.0.0.2"
+                            "ip": "10.0.0.2",
+                            "weight": 1
                         }
                     ]
                 }

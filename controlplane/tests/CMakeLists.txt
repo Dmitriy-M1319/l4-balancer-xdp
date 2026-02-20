@@ -15,6 +15,7 @@ enable_testing()
 set(EXTERNAL_SOURCES 
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/fileconfigloader.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/jsonparser.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/config/validator.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/manager/configmanager.cpp)
 
 set(EXTERNAL_HEADERS 
@@ -23,7 +24,8 @@ set(EXTERNAL_HEADERS
 
 set(CONFIG_TESTS 
   config/fileconfigloader_test.cpp
-  config/jsonparser_test.cpp)
+  config/jsonparser_test.cpp
+  config/validator_test.cpp)
 
 set(MANAGER_TESTS
   manager/configmanager_test.cpp)

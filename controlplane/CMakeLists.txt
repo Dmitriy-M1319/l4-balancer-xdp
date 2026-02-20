@@ -24,7 +24,8 @@ set(MANAGER_SOURCES
     src/manager/xdpdataplane.cpp)
 
 set(NETUTILS_SOURCES
-    src/netutils/arp.cpp)
+    src/netutils/arp.cpp
+    src/netutils/ndp.cpp)
 
 set(SOURCES ${CONFIG_SOURCES} ${MANAGER_SOURCES} ${NETUTILS_SOURCES})
 

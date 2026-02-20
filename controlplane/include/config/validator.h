@@ -21,8 +21,6 @@ inline void trim(std::string &s) {
     }));
 }
 
-
-
 }
 
 namespace validators {
@@ -78,6 +76,10 @@ public:
             }
 
             for(auto& real: service.reals) {
+                if(real.ip_version != service.ip_version) {
+                    return std::format("service has IPv{} address {}, real has another IPv{} address {}", 
+                        service.ip_version, real.ip_version, service.vip, real.ip);
+                }
                 if(real.weight == 0) {
                     return std::format("invalid weight value for real: {}", real.weight);
                 }
