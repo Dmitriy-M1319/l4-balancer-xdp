@@ -40,5 +40,14 @@ struct ServiceInfo {
     __u8 algorithm;         
     __u8 _pad[3];               // Aligment
 };
+
+struct PacketsData {
+    __u64 total_packets;
+    __u64 tcp_syn_packets;
+    __u64 prepared_packets;
+    __u32 connections;
+    __u64 total_bytes;
+} __attribute__((packed));
+
 }
 }

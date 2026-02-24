@@ -138,6 +138,22 @@ std::optional<std::string> manager::XdpDataplane::RunProgram(const std::string& 
         m_wrrStateMapFd = bpf_map__fd(m_wrrStateMap);    
     }
 
+    auto backendsStates = openBpfMap("backends_packets_stats");
+    if(std::get_if<std::string>(&backendsStates)) {
+        return std::get<std::string>(backendsStates);
+    } else {
+        m_backendsStatsMap = std::get<bpf_map*>(backendsStates);
+        m_backendsStatsMapFd = bpf_map__fd(m_backendsStatsMap);    
+    }
+
+    auto servicesStates = openBpfMap("services_packets_stats");
+    if(std::get_if<std::string>(&servicesStates)) {
+        return std::get<std::string>(servicesStates);
+    } else {
+        m_servicesStatsMap = std::get<bpf_map*>(servicesStates);
+        m_servicesStatsMapFd = bpf_map__fd(m_servicesStatsMap);    
+    }
+
 
     return std::nullopt;
 }
@@ -163,10 +179,10 @@ bool manager::XdpDataplane::isValidBpfState() const noexcept {
 
 std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::BaseConfig& config) {
     if(isValidBpfState()) {
-        std::vector<xdp::Backend> xdpBackends;
         int currentBackendIdx = 0;
-        std::vector<xdp::ServiceKey> xdpKeys(config.services.size());
-        std::vector<xdp::ServiceInfo> xdpServices(config.services.size());
+        m_xdpBackends.clear();
+        m_xdpKeys.resize(config.services.size());
+        m_xdpServices.resize(config.services.size());
 
         for(const auto& service: config.services) {
             // 1. Key preparing
@@ -192,7 +208,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
                 key.ip_version = 6;
             }
 
-            xdpKeys.push_back(std::move(key));
+            m_xdpKeys.push_back(std::move(key));
 
             // 2. Balancers Preparing
             int count = 0;
@@ -231,7 +247,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
                      return std::format("failed to get MAC address for real IP {} ", real.ip);
                 }
                 back.active = static_cast<unsigned char>(real.enabled);
-                xdpBackends.push_back(std::move(back));
+                m_xdpBackends.push_back(std::move(back));
                 ++count;
             }
 
@@ -240,7 +256,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
             info.backend_start_idx = currentBackendIdx;
             info.backend_count = count;
             info.algorithm = static_cast<int>(service.type);
-            xdpServices.push_back(std::move(info));
+            m_xdpServices.push_back(std::move(info));
             currentBackendIdx += count;
         }
 
@@ -260,28 +276,28 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
         int currBackendMapFd = (currentIndex == 0 ? m_backendsMapSecondFd : m_backendsMapFirstFd);
 
         // Load Backends
-        std::vector<__u32> backendKeys(xdpBackends.size());
+        std::vector<__u32> backendKeys(m_xdpBackends.size());
         for (size_t i = 0; i < backendKeys.size(); i++) {
             backendKeys[i] = static_cast<__u32>(i);
         }
 
-        __u32 backendCount = static_cast<__u32>(xdpBackends.size());
+        __u32 backendCount = static_cast<__u32>(m_xdpBackends.size());
         bpf_map_batch_opts opts;
         opts.flags = BPF_ANY; 
         int ret = bpf_map_update_batch(currBackendMapFd, 
                                        backendKeys.data(), 
-                                       xdpBackends.data(),
+                                       m_xdpBackends.data(),
                                        &backendCount, 
                                        &opts);
         if(ret != 0) {
             return std::format("failed to update batch of backends: {}", strerror(errno));
         }
 
-        __u32 serviceCount = static_cast<__u32>(xdpKeys.size());
+        __u32 serviceCount = static_cast<__u32>(m_xdpKeys.size());
         
         ret = bpf_map_update_batch(currServicesMapFd,
-                                       xdpKeys.data(),
-                                       xdpServices.data(),
+                                       m_xdpKeys.data(),
+                                       m_xdpServices.data(),
                                        &serviceCount,
                                        &opts);
         if(ret != 0) {
@@ -295,8 +311,8 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
         }
 
         // rr index reload
-        std::vector<uint32_t> zeros(xdpKeys.size(), 0);
-        if(bpf_map_update_batch(m_rrIndexMapFd, xdpKeys.data(), zeros.data(), &serviceCount,&opts) != 0) {
+        std::vector<uint32_t> zeros(m_xdpKeys.size(), 0);
+        if(bpf_map_update_batch(m_rrIndexMapFd, m_xdpKeys.data(), zeros.data(), &serviceCount,&opts) != 0) {
             return std::format("failed to update rr index on config: {}", strerror(errno));
         }
 
@@ -308,6 +324,30 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
         // clear sessions state map
         if(bpf_map_delete_batch(m_sessionStateMapFd, NULL, NULL, NULL) != 0) {
             return std::format("failed to clear session states on config: {}", strerror(errno));
+        }
+
+        // reset backend stats
+        std::vector<xdp::PacketsData> zeroPercpuData(m_cpusNumber);
+        std::ranges::fill(zeroPercpuData, xdp::PacketsData{});
+        for (uint32_t backend_idx = 0; backend_idx < backendCount; backend_idx++) {
+            int ret = bpf_map_update_elem(m_backendsStatsMapFd,
+                                      &backend_idx,
+                                      zeroPercpuData.data(),
+                                      BPF_ANY);
+            if (ret != 0) {
+                return std::format("Failed to reset backend {} stats: {}", backend_idx, strerror(errno));
+            }
+        }
+
+        // reset services stats
+        for (const auto& key : m_xdpKeys) {
+            int ret = bpf_map_update_elem(m_servicesStatsMapFd,
+                                      &key,
+                                      zeroPercpuData.data(),
+                                      BPF_ANY);
+            if (ret != 0) {
+                return std::format("Failed to reset service stats: {}", strerror(errno));
+            }
         }
 
         return std::nullopt;
@@ -325,55 +365,60 @@ void manager::XdpDataplane::StopProgram() {
     }
 }
 
-// // Ключ: комбинация VIP + protocol + port
-// struct service_key {
-//     __u32 vip;        // Virtual IP
-//     __u16 port;       // Virtual Port
-//     __u8 protocol;    // IPPROTO_TCP или IPPROTO_UDP
-//     __u8 _pad;        // Выравнивание
-// };
+std::map<manager::xdp::Backend, manager::xdp::PacketsData> manager::XdpDataplane::GetBackendsCurrentMetrics() const {
+    std::map<xdp::Backend, xdp::PacketsData> results;
+    
+    std::vector<xdp::PacketsData> percpu_stats(m_cpusNumber);
+    
+    for (uint32_t backend_idx = 0; backend_idx < m_xdpBackends.size(); backend_idx++) {
+        int ret = bpf_map_lookup_elem(m_backendsStatsMapFd,
+                                      &backend_idx,
+                                      percpu_stats.data());
+        if (ret != 0) {
+            continue;
+        }
+        
+        xdp::PacketsData stats{};
+        
+        for (const auto& cpu_stats : percpu_stats) {
+            stats.total_packets += cpu_stats.total_packets;
+            stats.total_bytes += cpu_stats.total_bytes;
+            stats.connections += cpu_stats.connections;
+            stats.tcp_syn_packets += cpu_stats.tcp_syn_packets;
+            stats.prepared_packets += cpu_stats.prepared_packets;
+        }
+        
+        results[m_xdpBackends[backend_idx]] = stats;
+    }
+    
+    return results;
+}
 
-// // Значение: конфигурация сервиса
-// struct service_info {
-//     __u32 backend_count;     // Количество активных backends
-//     __u32 backend_start_idx; // Индекс первого backend в массиве backends
-//     __u8 algorithm;          // 0=round-robin, 1=consistent-hash, etc
-//     __u8 _pad[3];
-// };
-
-// struct {
-//     __uint(type, BPF_MAP_TYPE_HASH);
-//     __uint(max_entries, 256);  // До 256 сервисов
-//     __type(key, struct service_key);
-//     __type(value, struct service_info);
-// } services_first SEC(".maps");
-
-// struct {
-//     __uint(type, BPF_MAP_TYPE_HASH);
-//     __uint(max_entries, 256);  // До 256 сервисов
-//     __type(key, struct service_key);
-//     __type(value, struct service_info);
-// } services_second SEC(".maps");
-
-// struct {
-//     __uint(type, BPF_MAP_TYPE_ARRAY);
-//     __uint(max_entries, 1);
-//     __type(key, __u32);
-//     __type(value, __u64); // Указатель на map_fd
-// } atomic_index SEC(".maps");
-
-// Структура backend сервера
-// struct backend {
-//     __u32 ip;                // Real server IP
-//     __u16 port;              // Real server port (если отличается от VIP port)
-//     unsigned char mac[6];    // MAC адрес backend
-//     __u8 active;             // 1=активен, 0=отключен
-//     __u8 weight;             // Вес для weighted round-robin (опционально)
-// };
-
-// struct {
-//     __uint(type, BPF_MAP_TYPE_ARRAY);
-//     __uint(max_entries, 1024);  // До 1024 backend серверов всего
-//     __type(key, __u32);         // Глобальный индекс backend
-//     __type(value, struct backend);
-// } backends SEC(".maps");
+std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDataplane::GetServicesCurrentMetrics() const {
+    std::map<xdp::ServiceKey, xdp::PacketsData> results;
+    
+    std::vector<xdp::PacketsData> percpu_stats(m_cpusNumber);
+    
+    for (const auto& key: m_xdpKeys) {
+        int ret = bpf_map_lookup_elem(m_servicesStatsMapFd,
+                                      &key,
+                                      percpu_stats.data());
+        if (ret != 0) {
+            continue;
+        }
+        
+        xdp::PacketsData stats{};
+        
+        for (const auto& cpu_stats : percpu_stats) {
+            stats.total_packets += cpu_stats.total_packets;
+            stats.total_bytes += cpu_stats.total_bytes;
+            stats.connections += cpu_stats.connections;
+            stats.tcp_syn_packets += cpu_stats.tcp_syn_packets;
+            stats.prepared_packets += cpu_stats.prepared_packets;
+        }
+        
+        results[key] = stats;
+    }
+    
+    return results;
+}

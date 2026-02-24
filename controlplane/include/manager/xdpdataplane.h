@@ -1,10 +1,13 @@
 #pragma once
 
+#include "baseconfig.h"
 #include "idataplane.h"
+#include "xdpstructs.h"
 #include <variant>
 #include <bpf/libbpf.h>
 #include <linux/if_link.h>
 #include <net/if.h>
+#include <map>
 
 namespace blncr::manager {
 
@@ -35,12 +38,22 @@ class XdpDataplane : public IDataplane {
     bpf_map * m_wrrStateMap = nullptr;
     int m_wrrStateMapFd{};
 
+    bpf_map *m_backendsStatsMap = nullptr;
+    int m_backendsStatsMapFd{};
+
+    bpf_map *m_servicesStatsMap = nullptr;
+    int m_servicesStatsMapFd{};
+
 
     std::string m_progName;
     std::string m_progInterface;
     int m_interfaceIdx{};
 
     bool m_isFirstRun = true;
+    int m_cpusNumber = libbpf_num_possible_cpus();
+    std::vector<xdp::Backend> m_xdpBackends;
+    std::vector<xdp::ServiceKey> m_xdpKeys;
+    std::vector<xdp::ServiceInfo> m_xdpServices;
 
 public:
     explicit XdpDataplane(const std::string& name, const std::string& iface);
@@ -48,6 +61,9 @@ public:
 
     std::optional<std::string> RunProgram(const std::string& binName);
     std::optional<std::string> ReloadConfig(const config::BaseConfig&) override;
+
+    std::map<xdp::Backend, xdp::PacketsData> GetBackendsCurrentMetrics() const;
+    std::map<xdp::ServiceKey, xdp::PacketsData> GetServicesCurrentMetrics() const;
 
     void StopProgram();
 private:

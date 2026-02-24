@@ -10,7 +10,7 @@
 #define BALANCER_WRR 0x01
 #define BALANCER_CH 0x02
 
-#define TCP_STATE_TIMEOUT 60000000000ULL
+#define TCP_STATE_TIMEOUT 60000000000ULL // 1 minute (in ns)
 
 // Key: composition VIP + protocol + port
 struct service_key {
@@ -82,6 +82,8 @@ struct {
 } backends_second SEC(".maps");
 
 
+// ======================== BALANCER ALGORITHMS DATA ============================
+
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 256);  
@@ -103,7 +105,8 @@ struct {
 } wrr_state_map SEC(".maps");
 
 
-// TCP Session State (lives 1 minute)
+
+// =================== TCP Session State (lives 1 minute) ======================
 // Connection Key
 struct session_state_key {
     union {
@@ -133,6 +136,29 @@ struct {
 } tcp_session_state SEC(".maps");
 
 
+
+// =================== STATICSTICS DATA ========================
+struct summary_packets_data {
+    __u64 total_packets;
+    __u64 tcp_syn_packets;
+    __u64 prepared_packets;
+    __u32 connections;
+    __u64 total_bytes;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1024);  
+    __type(key, __u32);         
+    __type(value, struct summary_packets_data);
+} backends_packets_stats SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_HASH);
+    __uint(max_entries, 256);  
+    __type(key, struct service_key);         
+    __type(value, struct summary_packets_data);
+} services_packets_stats SEC(".maps");
 
 
 static __always_inline __u32 csum_add_block(const void *data,
@@ -424,8 +450,10 @@ static __always_inline struct backend *wrr_balancer_handle(void *current_back_ma
 
 static __always_inline struct backend *find_tcp_backend(struct session_state_key *state_key, 
                                                         struct service_key *key,
-                                                        struct tcphdr *tcp) 
+                                                        struct tcphdr *tcp,
+                                                        __u32 packet_len) 
 {
+    __u32 last_backend_index = 0;
     struct session_state_val *state_backend = (struct session_state_val *)0;
     struct backend *backend = (struct backend *)0;
     __u32 atomic_key = 0;
@@ -455,21 +483,35 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
             if (now - state_backend->created > state_backend->timeout) {
                 // state expired
                 bpf_map_delete_elem(&tcp_session_state, &state_key);
+
+                // backend stats block
+                struct summary_packets_data *pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &state_backend->backend_idx);
+                if(pkts_stats) {
+                    pkts_stats->connections--;
+                }
+
+                // service state block
+                struct summary_packets_data *service_pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &key);
+                if(service_pkts_stats) {
+                    service_pkts_stats->connections--;
+                }
             } else {
                 state_backend->created = now;
                 backend = (struct backend *)bpf_map_lookup_elem(backends_map, &state_backend->backend_idx);
+                last_backend_index = state_backend->backend_idx;
             }
         } 
     }
     if(!backend) {
         struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, key);
-        __u32 state_index;
         __u32 attempts = 0;
         if(info) {
             switch (info->algorithm) {
                 case BALANCER_RR:
                     do {
-                        backend = rr_balancer_handle(backends_map, info, key, &state_index);
+                        backend = rr_balancer_handle(backends_map, info, key, &last_backend_index);
                         if (++attempts > info->backend_count) {
                             backend = (struct backend *)0;
                             break;
@@ -478,7 +520,7 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
                     break;
                 case BALANCER_WRR:
                     do {
-                        backend = wrr_balancer_handle(backends_map, info, key, &state_index);
+                        backend = wrr_balancer_handle(backends_map, info, key, &last_backend_index);
                         if (++attempts > info->backend_count) {
                             backend = (struct backend *)0;
                             break;
@@ -499,9 +541,22 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
 
         // new state create
         struct session_state_val new_state;
-        new_state.backend_idx = state_index;
+        new_state.backend_idx = last_backend_index;
         new_state.created = bpf_ktime_get_ns();
         new_state.timeout = TCP_STATE_TIMEOUT;
+
+        // backend stats
+        struct summary_packets_data *pkts_stats = (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &state_backend->backend_idx);
+        if(pkts_stats) {
+            pkts_stats->connections++;
+        }
+
+        // service stats
+        struct summary_packets_data *service_pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &key);
+        if(service_pkts_stats) {
+            service_pkts_stats->connections++;
+        }
 
         bpf_map_update_elem(&tcp_session_state, &state_key, &new_state, BPF_ANY);
     }
@@ -509,6 +564,42 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
     // check if TCP FIN or TCP RST (delete session state)
     if(state_backend && (tcp->fin || tcp->rst)) {
         bpf_map_delete_elem(&tcp_session_state, &state_key);
+        // backend stats block
+        struct summary_packets_data *pkts_stats = 
+            (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &state_backend->backend_idx);
+        if(pkts_stats) {
+            pkts_stats->connections--;
+        } 
+
+        // service stats block
+        struct summary_packets_data *service_pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &key);
+        if(service_pkts_stats) {
+            service_pkts_stats->connections--;
+        }
+    }
+
+    // backend stats block
+    struct summary_packets_data *pkts_stats = 
+        (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &last_backend_index);
+    if(pkts_stats) {
+        pkts_stats->total_packets++;
+        if(tcp->syn) {
+            pkts_stats->tcp_syn_packets++;
+        }
+        pkts_stats->prepared_packets++;
+        pkts_stats->total_bytes += packet_len;
+    }
+
+    // service stats block
+    struct summary_packets_data *service_pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &key);
+    if(service_pkts_stats) {
+        service_pkts_stats->total_packets++;
+        if(tcp->syn) {
+            service_pkts_stats->tcp_syn_packets++;
+        }
+        service_pkts_stats->prepared_packets++;
     }
 
     return backend;
@@ -516,7 +607,7 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
 
 
 
-static __always_inline struct backend *find_udp_backend(struct service_key *key) 
+static __always_inline struct backend *find_udp_backend(struct service_key *key, __u32 packet_len) 
 {
     struct backend *backend = (struct backend *)0;
     __u32 atomic_key = 0;
@@ -538,13 +629,13 @@ static __always_inline struct backend *find_udp_backend(struct service_key *key)
 
     // no sessions for UDP traffic
     struct service_info *info = (struct service_info *)bpf_map_lookup_elem(&services_map, key);
-    __u32 state_index;
+    __u32 last_backend_index;
     __u32 attempts = 0;
     if(info) {
         switch (info->algorithm) {
             case BALANCER_RR:
                 do {
-                    backend = rr_balancer_handle(backends_map, info, key, &state_index);
+                    backend = rr_balancer_handle(backends_map, info, key, &last_backend_index);
                     if (++attempts > info->backend_count) {
                         backend = (struct backend *)0;
                         break;
@@ -553,7 +644,7 @@ static __always_inline struct backend *find_udp_backend(struct service_key *key)
                 break;
             case BALANCER_WRR:
                 do {
-                    backend = wrr_balancer_handle(backends_map, info, key, &state_index);
+                    backend = wrr_balancer_handle(backends_map, info, key, &last_backend_index);
                     if (++attempts > info->backend_count) {
                         backend = (struct backend *)0;
                         break;
@@ -570,6 +661,22 @@ static __always_inline struct backend *find_udp_backend(struct service_key *key)
         }
     } else {
         return (struct backend *)0;
+    }
+
+    struct summary_packets_data *pkts_stats = 
+        (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &last_backend_index);
+    if(pkts_stats) {
+        pkts_stats->total_packets++;
+        pkts_stats->prepared_packets++;
+        pkts_stats->total_bytes += packet_len;
+    }
+
+    struct summary_packets_data *service_pkts_stats = 
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &key);
+    if(service_pkts_stats) {
+        service_pkts_stats->total_packets++;
+        service_pkts_stats->prepared_packets++;
+        service_pkts_stats->total_bytes += packet_len;
     }
 
     return backend;
@@ -600,7 +707,8 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header,
     state_key.src_port = tcp_header->source;
     state_key.dst_port = tcp_header->dest;
 
-    backend = find_tcp_backend(&state_key, &key, tcp_header);
+    __u32 packet_len = (__u32)(data_end - (void *)l2_header); 
+    backend = find_tcp_backend(&state_key, &key, tcp_header, packet_len);
     if(!backend) {
         return 3;
     }
@@ -632,7 +740,9 @@ static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header,
     key.protocol = IPPROTO_UDP;
     key.ip_version = 4;
 
-    struct backend *backend = find_udp_backend(&key);
+    __u32 packet_len = (__u32)(data_end - (void *)l2_header); 
+
+    struct backend *backend = find_udp_backend(&key, packet_len);
     if(!backend) {
         return 3;
     }
@@ -673,7 +783,8 @@ static __always_inline __u8 tcp_balancer_handle_v6(struct ethhdr *l2_header,
     state_key.src_port = tcp_header->source;
     state_key.dst_port = tcp_header->dest;
 
-    backend = find_tcp_backend(&state_key, &key, tcp_header);
+    __u32 packet_len = (__u32)(data_end - (void *)l2_header); 
+    backend = find_tcp_backend(&state_key, &key, tcp_header, packet_len);
     if(!backend) {
         return 3;
     }
@@ -702,7 +813,8 @@ static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header,
     key.protocol = IPPROTO_UDP;
     key.ip_version = 6;
 
-    struct backend *backend = find_udp_backend(&key);
+    __u32 packet_len = (__u32)(data_end - (void *)l2_header); 
+    struct backend *backend = find_udp_backend(&key, packet_len);
     if(!backend) {
         return 3;
     }
