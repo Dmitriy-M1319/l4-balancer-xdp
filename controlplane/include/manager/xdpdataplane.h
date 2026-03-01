@@ -3,6 +3,7 @@
 #include "baseconfig.h"
 #include "idataplane.h"
 #include "xdpstructs.h"
+#include "metrics_data.h"
 #include <variant>
 #include <bpf/libbpf.h>
 #include <linux/if_link.h>
@@ -11,7 +12,7 @@
 
 namespace blncr::manager {
 
-class XdpDataplane : public IDataplane {
+class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider {
     bpf_object *m_xdpObject = nullptr;
     bpf_program *m_xdpProgram = nullptr;
     bpf_link *m_xdpLink= nullptr;
@@ -62,8 +63,11 @@ public:
     std::optional<std::string> RunProgram(const std::string& binName);
     std::optional<std::string> ReloadConfig(const config::BaseConfig&) override;
 
-    std::map<xdp::Backend, xdp::PacketsData> GetBackendsCurrentMetrics() const;
-    std::map<xdp::ServiceKey, xdp::PacketsData> GetServicesCurrentMetrics() const;
+    std::map<metrics::BackendInfo, metrics::MetricsData> GetBackendsCurrentMetrics() override;
+    std::map<metrics::ServiceInfo, metrics::MetricsData> GetServicesCurrentMetrics() override;
+
+    std::map<xdp::Backend, xdp::PacketsData> GetBackendsMetrics() const;
+    std::map<xdp::ServiceKey, xdp::PacketsData> GetServicesMetrics() const;
 
     void StopProgram();
 private:

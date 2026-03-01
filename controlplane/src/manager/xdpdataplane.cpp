@@ -1,7 +1,9 @@
 #include "xdpdataplane.h"
 #include "arp.h"
+#include "metrics_data.h"
 #include "ndp.h"
 #include "xdpstructs.h"
+#include <algorithm>
 #include <array>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -15,6 +17,7 @@
 #include <arpa/inet.h>
 #include <string>
 #include <sys/socket.h>
+#include <utility>
 #include <variant>
 
 
@@ -365,7 +368,7 @@ void manager::XdpDataplane::StopProgram() {
     }
 }
 
-std::map<manager::xdp::Backend, manager::xdp::PacketsData> manager::XdpDataplane::GetBackendsCurrentMetrics() const {
+std::map<manager::xdp::Backend, manager::xdp::PacketsData> manager::XdpDataplane::GetBackendsMetrics() const {
     std::map<xdp::Backend, xdp::PacketsData> results;
     
     std::vector<xdp::PacketsData> percpu_stats(m_cpusNumber);
@@ -394,7 +397,7 @@ std::map<manager::xdp::Backend, manager::xdp::PacketsData> manager::XdpDataplane
     return results;
 }
 
-std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDataplane::GetServicesCurrentMetrics() const {
+std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDataplane::GetServicesMetrics() const {
     std::map<xdp::ServiceKey, xdp::PacketsData> results;
     
     std::vector<xdp::PacketsData> percpu_stats(m_cpusNumber);
@@ -421,4 +424,41 @@ std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDatapl
     }
     
     return results;
+}
+
+// TODO: ip_address
+
+std::map<metrics::BackendInfo, metrics::MetricsData> manager::XdpDataplane::GetBackendsCurrentMetrics() {
+    auto backendsStats = GetBackendsMetrics();
+    std::map<metrics::BackendInfo, metrics::MetricsData> result;
+
+    for(const auto&[backend, stats]: backendsStats) {
+        result[metrics::BackendInfo{.port=backend.port, .ip_version=backend.ip_version}] = metrics::MetricsData{
+                .total_packets = stats.total_packets,
+                .tcp_syn_packets = stats.tcp_syn_packets,
+                .prepared_packets = stats.prepared_packets,
+                .connections = stats.connections,
+                .total_bytes = stats.total_bytes
+            };
+    }
+    
+    return result;
+}
+
+// TODO: ip_address and name
+std::map<metrics::ServiceInfo, metrics::MetricsData> manager::XdpDataplane::GetServicesCurrentMetrics() {
+    auto servicesStats = GetServicesMetrics();
+    std::map<metrics::ServiceInfo, metrics::MetricsData> result;
+
+    for(const auto&[service, stats]: servicesStats) {
+        result[metrics::ServiceInfo{.port=service.port, .ip_version=service.ip_version}] = metrics::MetricsData{
+                .total_packets = stats.total_packets,
+                .tcp_syn_packets = stats.tcp_syn_packets,
+                .prepared_packets = stats.prepared_packets,
+                .connections = stats.connections,
+                .total_bytes = stats.total_bytes
+            };
+    }
+    
+    return result;
 }

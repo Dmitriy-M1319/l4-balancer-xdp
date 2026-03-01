@@ -5,6 +5,8 @@
 #include "fileconfigloader.h"
 #include "idataplane.h"
 #include "jsonparser.h"
+#include "metrics_data.h"
+#include "metrics_server.h"
 #include "validator.h"
 #include "xdpdataplane.h"
 #include <iostream>
@@ -35,7 +37,7 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<blncr::loader::ConfigLoader> configLoader;
     std::unique_ptr<blncr::config::BaseConfigParser> configParser;
     std::unique_ptr<blncr::manager::ConfigManager> manager;
-    std::shared_ptr<blncr::manager::IDataplane> dataplane;
+    std::shared_ptr<blncr::manager::XdpDataplane> dataplane;
 
     if (vm.count("config-file")) {
         std::cout << "Configuration file was set to " << vm["config-file"].as<std::string>() << ".\n";
@@ -90,5 +92,9 @@ int main(int argc, char *argv[]) {
     
     manager->LoadConfig(std::move(conf));
     std::cout << "Manager loads config successfully" << std::endl;
+
+    blncr::metrics::MetricsServer metricsServer(dataplane);
+    metricsServer.Serve();
+    metricsServer.Join();
     return 0;
 }
