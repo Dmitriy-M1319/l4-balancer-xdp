@@ -3,9 +3,8 @@
 #include "configloader.h"
 #include "configmanager.h"
 #include "fileconfigloader.h"
-#include "idataplane.h"
+#include "grpc_server.h"
 #include "jsonparser.h"
-#include "metrics_data.h"
 #include "metrics_server.h"
 #include "validator.h"
 #include "xdpdataplane.h"
@@ -13,6 +12,19 @@
 #include <boost/program_options.hpp>
 #include <memory>
 #include <variant>
+
+// cmake ..    \
+// -DCMAKE_BUILD_TYPE=Release       \
+// -DOPENTELEMETRY_ABI_VERSION_NO=2     \
+// -DCMAKE_INSTALL_PREFIX=/usr/     \
+// -DBUILD_TESTING=OFF     \
+// -DWITH_EXAMPLES=OFF \
+// -DWITH_PROMETHEUS=ON \
+// -DWITH_ABI_VERSION_2=ON \
+// -DWITH_ABI_VERSION_1=OFF \
+// -DWITH_OTLP_HTTP=ON \
+// -DWITH_JAEGER=ON \
+// -DWITH_OTLP_GRPC=ON
 
 namespace po = boost::program_options;
 
@@ -36,7 +48,7 @@ int main(int argc, char *argv[]) {
     // Dependencies
     std::unique_ptr<blncr::loader::ConfigLoader> configLoader;
     std::unique_ptr<blncr::config::BaseConfigParser> configParser;
-    std::unique_ptr<blncr::manager::ConfigManager> manager;
+    std::shared_ptr<blncr::manager::ConfigManager> manager;
     std::shared_ptr<blncr::manager::XdpDataplane> dataplane;
 
     if (vm.count("config-file")) {
@@ -69,7 +81,7 @@ int main(int argc, char *argv[]) {
     }
 
     dataplane = std::make_shared<blncr::manager::XdpDataplane>("balancer_handler", "eth0"); // TODO: заглушки на названиях
-    manager = std::make_unique<blncr::manager::ConfigManager>(dataplane);
+    manager = std::make_shared<blncr::manager::ConfigManager>(dataplane);
 
     std::string data = configLoader->LoadConfig();
     if(data.empty()) {
@@ -95,6 +107,11 @@ int main(int argc, char *argv[]) {
 
     blncr::metrics::MetricsServer metricsServer(dataplane);
     metricsServer.Serve();
+
+    blncr::server::GrpcServer apiServer;
+    apiServer.init(manager);
+    std::cout << "gRPC API Server started on " << blncr::server::GRPC_SERVER_ADDRESS << std::endl;
+
     metricsServer.Join();
     return 0;
 }
