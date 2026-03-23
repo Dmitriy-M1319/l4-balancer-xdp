@@ -2,6 +2,7 @@
 #include "baseconfig.h"
 #include <algorithm>
 #include <format>
+#include <iterator>
 #include <optional>
 
 using namespace blncr;
@@ -65,4 +66,16 @@ std::optional<std::string> manager::ConfigManager::SetRealState(const command::S
         m_dataplane->ReloadConfig(*m_currConfig);
     }
     return std::nullopt;
+}
+
+std::vector<config::BalancerService> manager::ConfigManager::ListServices() const {
+    return m_currConfig->services;
+}
+
+std::vector<config::BalancerReal> manager::ConfigManager::ListBackends() const {
+    std::vector<config::BalancerReal> reals;
+    for(const auto& srv: m_currConfig->services) {
+        reals.insert(reals.end(), srv.reals.begin(), srv.reals.end());
+    }
+    return reals;
 }

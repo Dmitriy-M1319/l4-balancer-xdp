@@ -31,7 +31,9 @@ public:
     void LoadConfig(config::BaseConfig&&);
     bool Equal(const config::BaseConfig&) const;
     void AddService(const config::BalancerService&);
-    std::optional<std::string> SetRealState(const command::SetRealStateRequest&); // TODO: RealState request
+    std::vector<config::BalancerService> ListServices() const;
+    std::vector<config::BalancerReal> ListBackends() const;
+    std::optional<std::string> SetRealState(const command::SetRealStateRequest&);
 };
 
 }
