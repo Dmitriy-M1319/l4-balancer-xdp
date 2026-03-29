@@ -278,8 +278,19 @@ struct ServiceMetricsDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ServiceMetricsDefaultTypeInternal _ServiceMetrics_default_instance_;
+PROTOBUF_CONSTEXPR EmptyMessage::EmptyMessage(
+    ::_pbi::ConstantInitialized) {}
+struct EmptyMessageDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR EmptyMessageDefaultTypeInternal()
+      : _instance(::_pbi::ConstantInitialized{}) {}
+  ~EmptyMessageDefaultTypeInternal() {}
+  union {
+    EmptyMessage _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EmptyMessageDefaultTypeInternal _EmptyMessage_default_instance_;
 }  // namespace api
-static ::_pb::Metadata file_level_metadata_api_2fcontrolplane_2dapi_2eproto[17];
+static ::_pb::Metadata file_level_metadata_api_2fcontrolplane_2dapi_2eproto[18];
 static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_api_2fcontrolplane_2dapi_2eproto = nullptr;
 static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_api_2fcontrolplane_2dapi_2eproto = nullptr;
 
@@ -452,6 +463,12 @@ const uint32_t TableStruct_api_2fcontrolplane_2dapi_2eproto::offsets[] PROTOBUF_
   PROTOBUF_FIELD_OFFSET(::api::ServiceMetrics, _impl_.prepared_packets_),
   PROTOBUF_FIELD_OFFSET(::api::ServiceMetrics, _impl_.active_connections_),
   PROTOBUF_FIELD_OFFSET(::api::ServiceMetrics, _impl_.total_bytes_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::api::EmptyMessage, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::api::GetConfigRequest)},
@@ -471,6 +488,7 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 143, -1, -1, sizeof(::api::ListBackendsRequest)},
   { 150, -1, -1, sizeof(::api::ListBackendsResponse)},
   { 157, -1, -1, sizeof(::api::ServiceMetrics)},
+  { 168, -1, -1, sizeof(::api::EmptyMessage)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -491,6 +509,7 @@ static const ::_pb::Message* const file_default_instances[] = {
   &::api::_ListBackendsRequest_default_instance_._instance,
   &::api::_ListBackendsResponse_default_instance_._instance,
   &::api::_ServiceMetrics_default_instance_._instance,
+  &::api::_EmptyMessage_default_instance_._instance,
 };
 
 const char descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -532,24 +551,26 @@ const char descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto[] PROTOBUF
   "i.BackendInfo\"\213\001\n\016ServiceMetrics\022\025\n\rtota"
   "l_packets\030\001 \001(\004\022\027\n\017tcp_syn_packets\030\002 \001(\004"
   "\022\030\n\020prepared_packets\030\003 \001(\004\022\032\n\022active_con"
-  "nections\030\004 \001(\r\022\023\n\013total_bytes\030\005 \001(\0042\353\002\n\r"
-  "L4BalancerApi\022:\n\tGetConfig\022\025.api.GetConf"
-  "igRequest\032\026.api.GetConfigResponse\022C\n\014Upd"
-  "ateConfig\022\030.api.UpdateConfigRequest\032\031.ap"
-  "i.UpdateConfigResponse\022C\n\014ListServices\022\030"
-  ".api.ListServicesRequest\032\031.api.ListServi"
-  "cesResponse\022C\n\014ListBackends\022\030.api.ListBa"
-  "ckendsRequest\032\031.api.ListBackendsResponse"
-  "\022O\n\020SetBackendStatus\022\034.api.SetBackendSta"
-  "tusRequest\032\035.api.SetBackendStatusRespons"
-  "eB2Z0github.com/Dmitriy-M1319/l4-control"
-  "plane/api;apib\006proto3"
+  "nections\030\004 \001(\r\022\023\n\013total_bytes\030\005 \001(\004\"\016\n\014E"
+  "mptyMessage2\231\003\n\rL4BalancerApi\022:\n\tGetConf"
+  "ig\022\025.api.GetConfigRequest\032\026.api.GetConfi"
+  "gResponse\022C\n\014UpdateConfig\022\030.api.UpdateCo"
+  "nfigRequest\032\031.api.UpdateConfigResponse\022C"
+  "\n\014ListServices\022\030.api.ListServicesRequest"
+  "\032\031.api.ListServicesResponse\022C\n\014ListBacke"
+  "nds\022\030.api.ListBackendsRequest\032\031.api.List"
+  "BackendsResponse\022O\n\020SetBackendStatus\022\034.a"
+  "pi.SetBackendStatusRequest\032\035.api.SetBack"
+  "endStatusResponse\022,\n\004Ping\022\021.api.EmptyMes"
+  "sage\032\021.api.EmptyMessageB2Z0github.com/Dm"
+  "itriy-M1319/l4-controlplane/api;apib\006pro"
+  "to3"
   ;
 static ::_pbi::once_flag descriptor_table_api_2fcontrolplane_2dapi_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_api_2fcontrolplane_2dapi_2eproto = {
-    false, false, 1981, descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto,
+    false, false, 2043, descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto,
     "api/controlplane-api.proto",
-    &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once, nullptr, 0, 17,
+    &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once, nullptr, 0, 18,
     schemas, file_default_instances, TableStruct_api_2fcontrolplane_2dapi_2eproto::offsets,
     file_level_metadata_api_2fcontrolplane_2dapi_2eproto, file_level_enum_descriptors_api_2fcontrolplane_2dapi_2eproto,
     file_level_service_descriptors_api_2fcontrolplane_2dapi_2eproto,
@@ -4904,6 +4925,46 @@ void ServiceMetrics::InternalSwap(ServiceMetrics* other) {
       file_level_metadata_api_2fcontrolplane_2dapi_2eproto[16]);
 }
 
+// ===================================================================
+
+class EmptyMessage::_Internal {
+ public:
+};
+
+EmptyMessage::EmptyMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena, is_message_owned) {
+  // @@protoc_insertion_point(arena_constructor:api.EmptyMessage)
+}
+EmptyMessage::EmptyMessage(const EmptyMessage& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  EmptyMessage* const _this = this; (void)_this;
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:api.EmptyMessage)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData EmptyMessage::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EmptyMessage::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata EmptyMessage::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_api_2fcontrolplane_2dapi_2eproto_getter, &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once,
+      file_level_metadata_api_2fcontrolplane_2dapi_2eproto[17]);
+}
+
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace api
 PROTOBUF_NAMESPACE_OPEN
@@ -4974,6 +5035,10 @@ Arena::CreateMaybeMessage< ::api::ListBackendsResponse >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::api::ServiceMetrics*
 Arena::CreateMaybeMessage< ::api::ServiceMetrics >(Arena* arena) {
   return Arena::CreateMessageInternal< ::api::ServiceMetrics >(arena);
+}
+template<> PROTOBUF_NOINLINE ::api::EmptyMessage*
+Arena::CreateMaybeMessage< ::api::EmptyMessage >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::api::EmptyMessage >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

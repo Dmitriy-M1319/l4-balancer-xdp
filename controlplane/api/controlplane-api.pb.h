@@ -55,6 +55,9 @@ extern BackendInfoDefaultTypeInternal _BackendInfo_default_instance_;
 class Configuration;
 struct ConfigurationDefaultTypeInternal;
 extern ConfigurationDefaultTypeInternal _Configuration_default_instance_;
+class EmptyMessage;
+struct EmptyMessageDefaultTypeInternal;
+extern EmptyMessageDefaultTypeInternal _EmptyMessage_default_instance_;
 class GetConfigRequest;
 struct GetConfigRequestDefaultTypeInternal;
 extern GetConfigRequestDefaultTypeInternal _GetConfigRequest_default_instance_;
@@ -102,6 +105,7 @@ PROTOBUF_NAMESPACE_OPEN
 template<> ::api::Backend* Arena::CreateMaybeMessage<::api::Backend>(Arena*);
 template<> ::api::BackendInfo* Arena::CreateMaybeMessage<::api::BackendInfo>(Arena*);
 template<> ::api::Configuration* Arena::CreateMaybeMessage<::api::Configuration>(Arena*);
+template<> ::api::EmptyMessage* Arena::CreateMaybeMessage<::api::EmptyMessage>(Arena*);
 template<> ::api::GetConfigRequest* Arena::CreateMaybeMessage<::api::GetConfigRequest>(Arena*);
 template<> ::api::GetConfigResponse* Arena::CreateMaybeMessage<::api::GetConfigResponse>(Arena*);
 template<> ::api::ListBackendsRequest* Arena::CreateMaybeMessage<::api::ListBackendsRequest>(Arena*);
@@ -3170,6 +3174,124 @@ class ServiceMetrics final :
   union { Impl_ _impl_; };
   friend struct ::TableStruct_api_2fcontrolplane_2dapi_2eproto;
 };
+// -------------------------------------------------------------------
+
+class EmptyMessage final :
+    public ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase /* @@protoc_insertion_point(class_definition:api.EmptyMessage) */ {
+ public:
+  inline EmptyMessage() : EmptyMessage(nullptr) {}
+  explicit PROTOBUF_CONSTEXPR EmptyMessage(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  EmptyMessage(const EmptyMessage& from);
+  EmptyMessage(EmptyMessage&& from) noexcept
+    : EmptyMessage() {
+    *this = ::std::move(from);
+  }
+
+  inline EmptyMessage& operator=(const EmptyMessage& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline EmptyMessage& operator=(EmptyMessage&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const EmptyMessage& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const EmptyMessage* internal_default_instance() {
+    return reinterpret_cast<const EmptyMessage*>(
+               &_EmptyMessage_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    17;
+
+  friend void swap(EmptyMessage& a, EmptyMessage& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(EmptyMessage* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(EmptyMessage* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  EmptyMessage* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<EmptyMessage>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const EmptyMessage& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl(*this, from);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const EmptyMessage& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl(*this, from);
+  }
+  public:
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "api.EmptyMessage";
+  }
+  protected:
+  explicit EmptyMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:api.EmptyMessage)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+  };
+  friend struct ::TableStruct_api_2fcontrolplane_2dapi_2eproto;
+};
 // ===================================================================
 
 
@@ -5214,9 +5336,15 @@ inline void ServiceMetrics::set_total_bytes(uint64_t value) {
   // @@protoc_insertion_point(field_set:api.ServiceMetrics.total_bytes)
 }
 
+// -------------------------------------------------------------------
+
+// EmptyMessage
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

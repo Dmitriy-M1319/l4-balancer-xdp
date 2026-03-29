@@ -2,13 +2,19 @@
 #include "grpc_mappers.h"
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
+#include <grpcpp/support/status.h>
 
 using blncr::server::ControlplaneApiServerImpl;
 using blncr::server::GrpcServer;
 using namespace blncr::server::mappers;
 
+// TODO: Прокинуть интерфейс для метрик
+
 ControlplaneApiServerImpl::ControlplaneApiServerImpl(std::shared_ptr<blncr::manager::ConfigManager> manager) :
     m_cpManager(manager) {}
+
+
+grpc::Status ControlplaneApiServerImpl::Ping(grpc::ServerContext *,const api::EmptyMessage*, api::EmptyMessage*) { return grpc::Status::OK; }
 
 grpc::Status ControlplaneApiServerImpl::GetConfig(grpc::ServerContext *ctx, 
                                                     const api::GetConfigRequest *request, 

@@ -70,6 +70,13 @@ class L4BalancerApi final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::SetBackendStatusResponse>> PrepareAsyncSetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::SetBackendStatusResponse>>(PrepareAsyncSetBackendStatusRaw(context, request, cq));
     }
+    virtual ::grpc::Status Ping(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::EmptyMessage* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>> AsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>>(AsyncPingRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>> PrepareAsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>>(PrepareAsyncPingRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -83,6 +90,8 @@ class L4BalancerApi final {
       virtual void ListBackends(::grpc::ClientContext* context, const ::api::ListBackendsRequest* request, ::api::ListBackendsResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       virtual void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -98,6 +107,8 @@ class L4BalancerApi final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::ListBackendsResponse>* PrepareAsyncListBackendsRaw(::grpc::ClientContext* context, const ::api::ListBackendsRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::SetBackendStatusResponse>* AsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::SetBackendStatusResponse>* PrepareAsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>* AsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>* PrepareAsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -137,6 +148,13 @@ class L4BalancerApi final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::SetBackendStatusResponse>> PrepareAsyncSetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::SetBackendStatusResponse>>(PrepareAsyncSetBackendStatusRaw(context, request, cq));
     }
+    ::grpc::Status Ping(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::EmptyMessage* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>> AsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>>(AsyncPingRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>> PrepareAsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>>(PrepareAsyncPingRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -150,6 +168,8 @@ class L4BalancerApi final {
       void ListBackends(::grpc::ClientContext* context, const ::api::ListBackendsRequest* request, ::api::ListBackendsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, std::function<void(::grpc::Status)>) override;
       void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, std::function<void(::grpc::Status)>) override;
+      void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -171,11 +191,14 @@ class L4BalancerApi final {
     ::grpc::ClientAsyncResponseReader< ::api::ListBackendsResponse>* PrepareAsyncListBackendsRaw(::grpc::ClientContext* context, const ::api::ListBackendsRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::api::SetBackendStatusResponse>* AsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::api::SetBackendStatusResponse>* PrepareAsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* AsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* PrepareAsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_GetConfig_;
     const ::grpc::internal::RpcMethod rpcmethod_UpdateConfig_;
     const ::grpc::internal::RpcMethod rpcmethod_ListServices_;
     const ::grpc::internal::RpcMethod rpcmethod_ListBackends_;
     const ::grpc::internal::RpcMethod rpcmethod_SetBackendStatus_;
+    const ::grpc::internal::RpcMethod rpcmethod_Ping_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -188,6 +211,7 @@ class L4BalancerApi final {
     virtual ::grpc::Status ListServices(::grpc::ServerContext* context, const ::api::ListServicesRequest* request, ::api::ListServicesResponse* response);
     virtual ::grpc::Status ListBackends(::grpc::ServerContext* context, const ::api::ListBackendsRequest* request, ::api::ListBackendsResponse* response);
     virtual ::grpc::Status SetBackendStatus(::grpc::ServerContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response);
+    virtual ::grpc::Status Ping(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_GetConfig : public BaseClass {
@@ -289,7 +313,27 @@ class L4BalancerApi final {
       ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_GetConfig<WithAsyncMethod_UpdateConfig<WithAsyncMethod_ListServices<WithAsyncMethod_ListBackends<WithAsyncMethod_SetBackendStatus<Service > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_Ping() {
+      ::grpc::Service::MarkMethodAsync(5);
+    }
+    ~WithAsyncMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPing(::grpc::ServerContext* context, ::api::EmptyMessage* request, ::grpc::ServerAsyncResponseWriter< ::api::EmptyMessage>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_GetConfig<WithAsyncMethod_UpdateConfig<WithAsyncMethod_ListServices<WithAsyncMethod_ListBackends<WithAsyncMethod_SetBackendStatus<WithAsyncMethod_Ping<Service > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_GetConfig : public BaseClass {
    private:
@@ -425,7 +469,34 @@ class L4BalancerApi final {
     virtual ::grpc::ServerUnaryReactor* SetBackendStatus(
       ::grpc::CallbackServerContext* /*context*/, const ::api::SetBackendStatusRequest* /*request*/, ::api::SetBackendStatusResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_GetConfig<WithCallbackMethod_UpdateConfig<WithCallbackMethod_ListServices<WithCallbackMethod_ListBackends<WithCallbackMethod_SetBackendStatus<Service > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_Ping() {
+      ::grpc::Service::MarkMethodCallback(5,
+          new ::grpc::internal::CallbackUnaryHandler< ::api::EmptyMessage, ::api::EmptyMessage>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response) { return this->Ping(context, request, response); }));}
+    void SetMessageAllocatorFor_Ping(
+        ::grpc::MessageAllocator< ::api::EmptyMessage, ::api::EmptyMessage>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(5);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::api::EmptyMessage, ::api::EmptyMessage>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Ping(
+      ::grpc::CallbackServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_GetConfig<WithCallbackMethod_UpdateConfig<WithCallbackMethod_ListServices<WithCallbackMethod_ListBackends<WithCallbackMethod_SetBackendStatus<WithCallbackMethod_Ping<Service > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_GetConfig : public BaseClass {
@@ -508,6 +579,23 @@ class L4BalancerApi final {
     }
     // disable synchronous version of this method
     ::grpc::Status SetBackendStatus(::grpc::ServerContext* /*context*/, const ::api::SetBackendStatusRequest* /*request*/, ::api::SetBackendStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_Ping() {
+      ::grpc::Service::MarkMethodGeneric(5);
+    }
+    ~WithGenericMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -610,6 +698,26 @@ class L4BalancerApi final {
     }
     void RequestSetBackendStatus(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(4, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_Ping() {
+      ::grpc::Service::MarkMethodRaw(5);
+    }
+    ~WithRawMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestPing(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -720,6 +828,28 @@ class L4BalancerApi final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* SetBackendStatus(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_Ping() {
+      ::grpc::Service::MarkMethodRawCallback(5,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->Ping(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Ping(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -857,9 +987,36 @@ class L4BalancerApi final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedSetBackendStatus(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::api::SetBackendStatusRequest,::api::SetBackendStatusResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<Service > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_Ping : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_Ping() {
+      ::grpc::Service::MarkMethodStreamed(5,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::api::EmptyMessage, ::api::EmptyMessage>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::api::EmptyMessage, ::api::EmptyMessage>* streamer) {
+                       return this->StreamedPing(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_Ping() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedPing(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::api::EmptyMessage,::api::EmptyMessage>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<Service > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<Service > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<Service > > > > > > StreamedService;
 };
 
 }  // namespace api

@@ -27,6 +27,7 @@ static const char* L4BalancerApi_method_names[] = {
   "/api.L4BalancerApi/ListServices",
   "/api.L4BalancerApi/ListBackends",
   "/api.L4BalancerApi/SetBackendStatus",
+  "/api.L4BalancerApi/Ping",
 };
 
 std::unique_ptr< L4BalancerApi::Stub> L4BalancerApi::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -41,6 +42,7 @@ L4BalancerApi::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_ListServices_(L4BalancerApi_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ListBackends_(L4BalancerApi_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_SetBackendStatus_(L4BalancerApi_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Ping_(L4BalancerApi_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status L4BalancerApi::Stub::GetConfig(::grpc::ClientContext* context, const ::api::GetConfigRequest& request, ::api::GetConfigResponse* response) {
@@ -158,6 +160,29 @@ void L4BalancerApi::Stub::async::SetBackendStatus(::grpc::ClientContext* context
   return result;
 }
 
+::grpc::Status L4BalancerApi::Stub::Ping(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::EmptyMessage* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::api::EmptyMessage, ::api::EmptyMessage, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_Ping_, context, request, response);
+}
+
+void L4BalancerApi::Stub::async::Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::api::EmptyMessage, ::api::EmptyMessage, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Ping_, context, request, response, std::move(f));
+}
+
+void L4BalancerApi::Stub::async::Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Ping_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* L4BalancerApi::Stub::PrepareAsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::api::EmptyMessage, ::api::EmptyMessage, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_Ping_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* L4BalancerApi::Stub::AsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncPingRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 L4BalancerApi::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       L4BalancerApi_method_names[0],
@@ -209,6 +234,16 @@ L4BalancerApi::Service::Service() {
              ::api::SetBackendStatusResponse* resp) {
                return service->SetBackendStatus(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      L4BalancerApi_method_names[5],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< L4BalancerApi::Service, ::api::EmptyMessage, ::api::EmptyMessage, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](L4BalancerApi::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::api::EmptyMessage* req,
+             ::api::EmptyMessage* resp) {
+               return service->Ping(ctx, req, resp);
+             }, this)));
 }
 
 L4BalancerApi::Service::~Service() {
@@ -243,6 +278,13 @@ L4BalancerApi::Service::~Service() {
 }
 
 ::grpc::Status L4BalancerApi::Service::SetBackendStatus(::grpc::ServerContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status L4BalancerApi::Service::Ping(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response) {
   (void) context;
   (void) request;
   (void) response;
