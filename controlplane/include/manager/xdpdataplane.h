@@ -4,6 +4,7 @@
 #include "idataplane.h"
 #include "xdpstructs.h"
 #include "metrics_data.h"
+#include "consistent_hash.h"
 #include <variant>
 #include <bpf/libbpf.h>
 #include <linux/if_link.h>
@@ -30,6 +31,7 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
     bpf_map *m_atomicIndexMap = nullptr;
     int m_atomicIndexMapFd{};
 
+    // rr/wrr balancer algorithms
     bpf_map *m_rrIndexMap = nullptr;
     int m_rrIndexMapFd{};
 
@@ -39,11 +41,29 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
     bpf_map * m_wrrStateMap = nullptr;
     int m_wrrStateMapFd{};
 
+    // statistics
     bpf_map *m_backendsStatsMap = nullptr;
     int m_backendsStatsMapFd{};
 
     bpf_map *m_servicesStatsMap = nullptr;
     int m_servicesStatsMapFd{};
+
+    // ch part
+    bpf_map *m_chCurrLookupMap = nullptr;
+    int m_chCurrLookupMapFd{};
+ 
+    bpf_map *m_chPrevLookupMap = nullptr;
+    int m_chPrevLookupMapFd{};
+ 
+    bpf_map *m_chBackendsMap = nullptr;
+    int m_chBackendsMapFd{};
+ 
+    bpf_map *m_chConfigMap = nullptr;
+    int m_chConfigMapFd{};
+ 
+    algorithm::ConsistentHashManager m_chManager;
+ 
+ 
 
 
     std::string m_progName;
@@ -70,9 +90,19 @@ public:
     std::map<xdp::ServiceKey, xdp::PacketsData> GetServicesMetrics() const;
 
     void StopProgram();
+
+    algorithm::ConsistentHashManager& getChManager() { return m_chManager; }
+ 
+    void ChPeriodicMaintenance();
 private:
     bool isValidBpfState() const noexcept;
     std::variant<bpf_map *, std::string> openBpfMap(std::string_view mapName);
+
+    bool updateChBpfMaps(const xdp::ServiceKey& service_key,
+                         const std::vector<xdp::Backend>& backends,
+                         const std::vector<int32_t>& curr_lookup,
+                         const std::vector<int32_t>& prev_lookup,
+                         uint32_t hashring_size);
 };
 
 }

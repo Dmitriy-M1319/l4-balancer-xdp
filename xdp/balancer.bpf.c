@@ -97,6 +97,8 @@ struct wrr_state {
     __u32 current_weight_counter;
 };
 
+// CH Balancing Algorithm
+
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 256);
@@ -104,7 +106,56 @@ struct {
     __type(value, struct wrr_state);
 } wrr_state_map SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 65537);
+    __type(key, __u32);
+    __type(value, __s32);
+} ch_curr_lookup SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 65537);
+    __type(key, __u32);
+    __type(value, __s32);
+} ch_prev_lookup SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 257);
+    __type(key, __u32);
+    __type(value, struct backend);
+} ch_backends SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 4);
+    __type(key, __u32);
+    __type(value, __u32);
+} ch_config SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, __u32);
+} ch_merge_control SEC(".maps");
+
+struct ch_stats_data {
+    __u64 total_lookups;
+    __u64 stable_lookups;
+    __u64 unstable_lookups;
+    __u64 merge_count;
+    __u64 update_count;
+    __u64 last_update_time;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct ch_stats_data);
+} ch_stats_map SEC(".maps");
 
 // =================== TCP Session State (lives 1 minute) ======================
 // Connection Key
@@ -375,6 +426,111 @@ static __always_inline void update_udp_checksum(
 }
 
 
+// ======================== CH FUNCTION HELPERS =============================
+static __always_inline __u32 hash_key_consistent(__u32 key, __u32 seed) {
+    __u32 hash = seed;
+    hash ^= key;
+    hash *= 0x9e3779b9;
+    hash = (hash << 13) | (hash >> 19);
+    hash ^= (hash >> 17);
+    hash *= 0x85ebca6b;
+    return hash;
+}
+
+static __always_inline __s32 consistent_hash_lookup(__u32 key_hash, bool use_prev) {
+    __u32 config_key = 0;
+    __u32* hashring_size = bpf_map_lookup_elem(&ch_config, &config_key);
+    if (!hashring_size || *hashring_size == 0) {
+        return -1;
+    }
+    
+    __u32 index = key_hash % *hashring_size;
+    __s32* backend_idx;
+    
+    if (use_prev) {
+        backend_idx = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+    } else {
+        backend_idx = bpf_map_lookup_elem(&ch_curr_lookup, &index);
+    }
+    
+    if (!backend_idx || *backend_idx < 0) {
+        return -1;
+    }
+    
+    __u32 stats_key = 0;
+    struct ch_stats_data* stats = bpf_map_lookup_elem(&ch_stats_map, &stats_key);
+    if (stats) {
+        stats->total_lookups++;
+        if (!use_prev) {
+            __s32* prev_idx = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+            if (prev_idx && *prev_idx == *backend_idx) {
+                stats->stable_lookups++;
+            } else {
+                stats->unstable_lookups++;
+            }
+        }
+    }
+    
+    return *backend_idx;
+}
+
+static __always_inline bool consistent_hash_is_stable(__u32 key_hash) {
+    __u32 config_key = 0;
+    __u32* hashring_size = bpf_map_lookup_elem(&ch_config, &config_key);
+    if (!hashring_size || *hashring_size == 0) {
+        return true;
+    }
+    
+    __u32 index = key_hash % *hashring_size;
+    __s32* curr = bpf_map_lookup_elem(&ch_curr_lookup, &index);
+    __s32* prev = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+    
+    if (!curr || !prev) {
+        return true;
+    }
+    
+    return *curr == *prev;
+}
+
+static __always_inline struct backend *ch_balancer_handle(
+    struct service_key *key, 
+    __u32 key_hash,
+    __u32 packet_len,
+    __u32 *last_index) 
+{
+    __s32 backend_idx = consistent_hash_lookup(key_hash, false);
+    if (backend_idx < 0) {
+        return NULL;
+    }
+    
+    __u32 bid = (__u32)backend_idx;
+    struct backend *backend = bpf_map_lookup_elem(&ch_backends, &bid);
+    if (!backend || !backend->active) {
+        return NULL;
+    }
+    
+    if (last_index) {
+        *last_index = bid;
+    }
+    
+    struct summary_packets_data *pkts_stats = 
+        bpf_map_lookup_elem(&backends_packets_stats, &bid);
+    if(pkts_stats) {
+        pkts_stats->total_packets++;
+        pkts_stats->prepared_packets++;
+        pkts_stats->total_bytes += packet_len;
+    }
+    
+    struct summary_packets_data *service_pkts_stats = 
+        bpf_map_lookup_elem(&services_packets_stats, key);
+    if(service_pkts_stats) {
+        service_pkts_stats->total_packets++;
+        service_pkts_stats->prepared_packets++;
+        service_pkts_stats->total_bytes += packet_len;
+    }
+    
+    return backend;
+}
 
 static __always_inline struct backend *rr_balancer_handle(void *current_back_map, 
                                                             struct service_info *info, 
@@ -526,6 +682,15 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
                             break;
                         }
                     } while(backend && !(backend->active));
+                    break;
+                case BALANCER_CH:
+                    {
+                        __u32 ch_hash = hash_key_consistent(
+                            state_key->src_ipv4 ^ state_key->dst_ipv4 ^ 
+                            ((__u32)state_key->src_port << 16) ^ (__u32)state_key->dst_port, 
+                            0x5737a28c);
+                        backend = ch_balancer_handle(key, ch_hash, packet_len, &last_backend_index);
+                    }
                     break;
                 default:
                     return (struct backend *)0;

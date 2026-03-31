@@ -41,7 +41,11 @@ set(GRPC_SERVER_SOURCES
     api/controlplane-api.pb.cc
     src/server/grpc_server.cpp)
 
-set(SOURCES ${CONFIG_SOURCES} ${MANAGER_SOURCES} ${NETUTILS_SOURCES} ${METRICS_SOURCES} ${GRPC_SERVER_SOURCES})
+set(ALGORITHM_SOURCES
+    src/algorithm/consistent_hash.cpp
+    src/algorithm/xxhash.cpp)
+
+set(SOURCES ${CONFIG_SOURCES} ${MANAGER_SOURCES} ${NETUTILS_SOURCES} ${METRICS_SOURCES} ${GRPC_SERVER_SOURCES} ${ALGORITHM_SOURCES})
 
 set(CONFIG_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/config)
 set(MANAGER_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/manager)
@@ -49,6 +53,7 @@ set(NETUTILS_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/netutils)
 set(METRICS_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/metrics)
 set(GRPC_SERVER_API_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR})
 set(GRPC_SERVER_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/server)
+set(ALGORITHM_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/algorithm)
 
 add_executable(${PROJECT_NAME} main.cpp ${SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -58,7 +63,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBBPF_LIBRARIES}
     ${METRICS_INCLUDES}
     ${GRPC_SERVER_INCLUDES}
-    ${GRPC_SERVER_API_INCLUDES})
+    ${GRPC_SERVER_API_INCLUDES}
+    ${ALGORITHM_INCLUDES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     nlohmann_json::nlohmann_json 

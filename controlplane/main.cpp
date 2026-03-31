@@ -12,6 +12,9 @@
 #include <boost/program_options.hpp>
 #include <memory>
 #include <variant>
+#include <thread>
+#include <atomic>
+#include <chrono>
 
 // cmake ..    \
 // -DCMAKE_BUILD_TYPE=Release       \
@@ -112,6 +115,19 @@ int main(int argc, char *argv[]) {
     apiServer.init(manager);
     std::cout << "gRPC API Server started on " << blncr::server::GRPC_SERVER_ADDRESS << std::endl;
 
+    std::atomic<bool> ch_running{true};
+    std::thread ch_maintenance_thread([&dataplane, &ch_running]() {
+        while (ch_running.load(std::memory_order_acquire)) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            dataplane->ChPeriodicMaintenance();
+        }
+    });
+
     metricsServer.Join();
+
+    ch_running.store(false, std::memory_order_release);
+    if (ch_maintenance_thread.joinable()) {
+        ch_maintenance_thread.join();
+    }
     return 0;
 }

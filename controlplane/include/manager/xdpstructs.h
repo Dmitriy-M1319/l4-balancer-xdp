@@ -1,7 +1,10 @@
 #pragma once
+
 #include <bpf/bpf.h>
 #include <cstring>
 #include <compare>
+#include <functional>
+#include "xxhash.h"
 
 namespace blncr::manager {
 
@@ -99,3 +102,17 @@ struct PacketsData {
 
 }
 }
+
+template<>
+struct std::hash<blncr::manager::xdp::ServiceKey> {
+    size_t operator()(const blncr::manager::xdp::ServiceKey& key) const {
+        size_t hash = 0;
+        if (key.ip_version == 4) {
+            hash = key.vip4;
+        } else {
+            hash = XXH3_64bits(&key.vip6, 16);
+        }
+        hash ^= (key.port << 16) ^ (key.protocol << 24) ^ (key.ip_version << 32);
+        return hash;
+    }
+};

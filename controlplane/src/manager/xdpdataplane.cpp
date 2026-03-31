@@ -19,12 +19,14 @@
 #include <sys/socket.h>
 #include <utility>
 #include <variant>
+#include <iostream>
 
 
 using namespace blncr;
 
 manager::XdpDataplane::XdpDataplane(const std::string& name, const std::string& iface) 
-    : m_progName(name), m_progInterface(iface) {}
+    : m_progName(name), m_progInterface(iface) {
+}
 
 manager::XdpDataplane::~XdpDataplane() {
     if (m_interfaceIdx > 0) {
@@ -156,6 +158,49 @@ std::optional<std::string> manager::XdpDataplane::RunProgram(const std::string& 
         m_servicesStatsMap = std::get<bpf_map*>(servicesStates);
         m_servicesStatsMapFd = bpf_map__fd(m_servicesStatsMap);    
     }
+
+    // CH (consistent hash) maps
+    auto chCurrLookup = openBpfMap("ch_curr_lookup");
+    if(std::get_if<std::string>(&chCurrLookup)) {
+        return std::get<std::string>(chCurrLookup);
+    } else {
+        m_chCurrLookupMap = std::get<bpf_map*>(chCurrLookup);
+        m_chCurrLookupMapFd = bpf_map__fd(m_chCurrLookupMap);
+    }
+
+    auto chPrevLookup = openBpfMap("ch_prev_lookup");
+    if(std::get_if<std::string>(&chPrevLookup)) {
+        return std::get<std::string>(chPrevLookup);
+    } else {
+        m_chPrevLookupMap = std::get<bpf_map*>(chPrevLookup);
+        m_chPrevLookupMapFd = bpf_map__fd(m_chPrevLookupMap);
+    }
+
+    auto chBackends = openBpfMap("ch_backends");
+    if(std::get_if<std::string>(&chBackends)) {
+        return std::get<std::string>(chBackends);
+    } else {
+        m_chBackendsMap = std::get<bpf_map*>(chBackends);
+        m_chBackendsMapFd = bpf_map__fd(m_chBackendsMap);
+    }
+
+    auto chConfig = openBpfMap("ch_config");
+    if(std::get_if<std::string>(&chConfig)) {
+        return std::get<std::string>(chConfig);
+    } else {
+        m_chConfigMap = std::get<bpf_map*>(chConfig);
+        m_chConfigMapFd = bpf_map__fd(m_chConfigMap);
+    }
+
+    m_chManager.setBpfUpdateCallback(
+        [this](const xdp::ServiceKey& key,
+               const std::vector<xdp::Backend>& backends,
+               const std::vector<int32_t>& curr,
+               const std::vector<int32_t>& prev,
+               uint32_t hashring_size) -> bool {
+            return updateChBpfMaps(key, backends, curr, prev, hashring_size);
+        }
+    );
 
 
     return std::nullopt;
@@ -324,6 +369,61 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
             return std::format("failed to reload wrr index on config: {}", strerror(errno));
         }
 
+        // ch update
+        for (size_t svc_idx = 0; svc_idx < config.services.size(); ++svc_idx) {
+            const auto& service = config.services[svc_idx];
+            if (service.type == config::BalancerType::CH) {
+                // Собираем активные бэкенды для CH
+                std::vector<xdp::Backend> ch_backends;
+                for (const auto& real : service.reals) {
+                    if (real.enabled) {
+                        for (size_t bi = 0; bi < m_xdpBackends.size(); ++bi) {
+                            // Сравниваем по IP и порту
+                            bool match = false;
+                            if (real.ip_version == 4) {
+                                struct in_addr addr;
+                                if (inet_aton(real.ip.c_str(), &addr) != 0) {
+                                    match = (m_xdpBackends[bi].ipv4 == addr.s_addr &&
+                                             m_xdpBackends[bi].ip_version == 4);
+                                }
+                            } else {
+                                struct in6_addr addr;
+                                if (inet_pton(AF_INET6, real.ip.c_str(), &addr) != 0) {
+                                    match = (memcmp(m_xdpBackends[bi].ipv6, &addr, 16) == 0 &&
+                                             m_xdpBackends[bi].ip_version == 6);
+                                }
+                            }
+                            if (match) {
+                                ch_backends.push_back(m_xdpBackends[bi]);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                xdp::ServiceKey ch_key{};
+                ch_key.port = static_cast<__u16>(service.port);
+                ch_key.protocol = static_cast<__u8>(
+                    service.protocol == "tcp" ? IPPROTO_TCP : IPPROTO_UDP);
+                ch_key.ip_version = service.ip_version;
+                if (service.ip_version == 4) {
+                    struct in_addr addr;
+                    inet_aton(service.vip.c_str(), &addr);
+                    ch_key.vip4 = addr.s_addr;
+                } else {
+                    struct in6_addr addr;
+                    inet_pton(AF_INET6, service.vip.c_str(), &addr);
+                    memcpy(ch_key.vip6, &addr, 16);
+                }
+
+                if (!ch_backends.empty()) {
+                    m_chManager.updateServiceBackends(ch_key, ch_backends);
+                } else {
+                    m_chManager.removeService(ch_key);
+                }
+            }
+        }
+
         // clear sessions state map
         if(bpf_map_delete_batch(m_sessionStateMapFd, NULL, NULL, NULL) != 0) {
             return std::format("failed to clear session states on config: {}", strerror(errno));
@@ -461,4 +561,67 @@ std::map<metrics::ServiceInfo, metrics::MetricsData> manager::XdpDataplane::GetS
     }
     
     return result;
+}
+
+bool manager::XdpDataplane::updateChBpfMaps(
+    const xdp::ServiceKey& /*service_key*/,
+    const std::vector<xdp::Backend>& backends,
+    const std::vector<int32_t>& curr_lookup,
+    const std::vector<int32_t>& prev_lookup,
+    uint32_t hashring_size)
+{
+    if (m_chCurrLookupMapFd <= 0 || m_chPrevLookupMapFd <= 0 ||
+        m_chBackendsMapFd <= 0 || m_chConfigMapFd <= 0) {
+        return false;
+    }
+
+    // 1. hashring_size → ch_config[0]
+    __u32 config_key0 = 0;
+    __u32 hs = hashring_size;
+    if (bpf_map_update_elem(m_chConfigMapFd, &config_key0, &hs, BPF_ANY) != 0) {
+        std::cerr << "[CH] failed to update ch_config hashring_size: "
+                  << strerror(errno) << std::endl;
+        return false;
+    }
+
+    __u32 config_key1 = 1;
+    __u32 bc = static_cast<__u32>(backends.size());
+    bpf_map_update_elem(m_chConfigMapFd, &config_key1, &bc, BPF_ANY);
+
+    for (uint32_t i = 0; i < backends.size(); ++i) {
+        __u32 bk = i;
+        if (bpf_map_update_elem(m_chBackendsMapFd, &bk, &backends[i], BPF_ANY) != 0) {
+            std::cerr << "[CH] failed to update ch_backend[" << i << "]: "
+                      << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+
+    for (uint32_t i = 0; i < hashring_size && i < curr_lookup.size(); ++i) {
+        __u32 lk = i;
+        __s32 val = curr_lookup[i];
+        if (bpf_map_update_elem(m_chCurrLookupMapFd, &lk, &val, BPF_ANY) != 0) {
+            std::cerr << "[CH] failed to update ch_curr_lookup[" << i << "]: "
+                      << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+
+    for (uint32_t i = 0; i < hashring_size && i < prev_lookup.size(); ++i) {
+        __u32 lk = i;
+        __s32 val = prev_lookup[i];
+        if (bpf_map_update_elem(m_chPrevLookupMapFd, &lk, &val, BPF_ANY) != 0) {
+            std::cerr << "[CH] failed to update ch_prev_lookup[" << i << "]: "
+                      << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+
+    std::cout << "[CH] BPF maps updated: " << backends.size()
+              << " backends, M=" << hashring_size << std::endl;
+    return true;
+}
+
+void manager::XdpDataplane::ChPeriodicMaintenance() {
+    m_chManager.periodicMaintenance();
 }
