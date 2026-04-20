@@ -37,6 +37,8 @@ int main(int argc, char *argv[]) {
         ("help", "produce help message")
         ("config-file", po::value<std::string>(), "set configuration file")
         ("format", po::value<std::string>(), "set configuration format (json, etc)")
+        ("xdp-binary", po::value<std::string>(), "path to compiled XDP BPF object (.o file)")
+        ("iface", po::value<std::string>()->default_value("eth0"), "network interface to attach XDP program")
     ;
 
     po::variables_map vm;
@@ -83,8 +85,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    dataplane = std::make_shared<blncr::manager::XdpDataplane>("balancer_handler", "eth0"); // TODO: заглушки на названиях
+    std::string iface = vm["iface"].as<std::string>();
+    dataplane = std::make_shared<blncr::manager::XdpDataplane>("balancer_handler", iface);
     manager = std::make_shared<blncr::manager::ConfigManager>(dataplane);
+
+    if (vm.count("xdp-binary")) {
+        auto xdpErr = dataplane->RunProgram(vm["xdp-binary"].as<std::string>());
+        if (xdpErr.has_value()) {
+            std::cout << "Failed to load XDP program: " << *xdpErr << std::endl;
+            return 1;
+        }
+        std::cout << "XDP program loaded on interface " << iface << std::endl;
+    }
 
     std::string data = configLoader->LoadConfig();
     if(data.empty()) {

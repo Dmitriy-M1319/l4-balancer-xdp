@@ -8,8 +8,6 @@ using blncr::server::ControlplaneApiServerImpl;
 using blncr::server::GrpcServer;
 using namespace blncr::server::mappers;
 
-// TODO: Прокинуть интерфейс для метрик
-
 ControlplaneApiServerImpl::ControlplaneApiServerImpl(std::shared_ptr<blncr::manager::ConfigManager> manager) :
     m_cpManager(manager) {}
 
@@ -22,7 +20,7 @@ grpc::Status ControlplaneApiServerImpl::GetConfig(grpc::ServerContext *ctx,
 {
     try {
         auto services = m_cpManager->ListServices();
-        *response->mutable_config() = ToProtoConfiguration(services);
+        *(response->mutable_config()) = std::move(ToProtoConfiguration(services));
         return grpc::Status::OK;
     } catch (const std::exception& e) {
         return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
@@ -84,13 +82,15 @@ grpc::Status ControlplaneApiServerImpl::ListServices(grpc::ServerContext *ctx,
             }
  
             std::optional<metrics::MetricsData> svcMetrics;
+
+            auto *service = response->add_services();
  
-            *response->add_services() = ToProtoServiceInfo(
+            *service = std::move(ToProtoServiceInfo(
                 svc,
                 request->include_backends(),
                 request->include_metrics(),
                 svcMetrics,
-                backendMetricsMap);
+                backendMetricsMap));
         }
  
         return grpc::Status::OK;
@@ -107,7 +107,9 @@ grpc::Status ControlplaneApiServerImpl::ListBackends(grpc::ServerContext *ctx,
         auto reals = m_cpManager->ListBackends();
  
         for (const auto& real : reals) {
-            *response->add_backends() = ToProtoBackendInfo(real);
+            auto *backend = response->add_backends();
+
+           *backend = std::move(ToProtoBackendInfo(real));
         }
  
         return grpc::Status::OK;
@@ -158,7 +160,7 @@ grpc::Status ControlplaneApiServerImpl::SetBackendStatus(grpc::ServerContext *ct
 }
 
 void GrpcServer::init(std::shared_ptr<blncr::manager::ConfigManager> manager) {
-    m_serverThread = std::thread([this, &manager]() {
+    m_serverThread = std::thread([this, manager]() {
 		m_impl = std::make_unique<ControlplaneApiServerImpl>(manager);
 		grpc::ServerBuilder builder;
 		builder.AddListeningPort(blncr::server::GRPC_SERVER_ADDRESS, grpc::InsecureServerCredentials());

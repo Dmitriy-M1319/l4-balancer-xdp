@@ -60,7 +60,9 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
  
     bpf_map *m_chConfigMap = nullptr;
     int m_chConfigMapFd{};
- 
+
+    bpf_map *m_lbConfigMap = nullptr;
+    int m_lbConfigMapFd{};
     algorithm::ConsistentHashManager m_chManager;
  
  
@@ -69,6 +71,7 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
     std::string m_progName;
     std::string m_progInterface;
     int m_interfaceIdx{};
+    uint32_t m_xdpFlags{};
 
     bool m_isFirstRun = true;
     int m_cpusNumber = libbpf_num_possible_cpus();

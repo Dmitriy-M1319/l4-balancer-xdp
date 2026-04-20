@@ -30,7 +30,7 @@ inline api::Backend ToProtoBackend(const config::BalancerReal& real) {
 inline api::BackendInfo ToProtoBackendInfo(const config::BalancerReal& real) {
     api::BackendInfo info;
     info.set_ip(real.ip);
-    info.set_port(0);
+    info.set_port(real.port);
     info.set_weight(real.weight);
     info.set_enabled(real.enabled);
     return info;

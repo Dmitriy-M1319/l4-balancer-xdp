@@ -17,7 +17,7 @@ MetricsServer::MetricsServer(std::shared_ptr<IMetricsProvider> provider,
     , m_scrapeInterval(scrape_interval)
 {
     metrics_exporter::PrometheusExporterOptions opts;
-    opts.url = std::format("localhost:{}", port);
+    opts.url = std::format("0.0.0.0:{}", port);
     
     auto prometheus_exporter = metrics_exporter::PrometheusExporterFactory::Create(opts);
     

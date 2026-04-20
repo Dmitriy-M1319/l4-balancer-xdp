@@ -61,7 +61,7 @@ struct ServiceKey {
     __u16 port;       
     __u8 protocol;  
     __u8 ip_version;  
-    __u8 _pad[4];        // Aligment
+    __u8 _pad[4] = {0, 0, 0,0};        // Aligment
 
     auto operator <=>(const ServiceKey& other) const {
         if (auto cmp = ip_version <=> other.ip_version; cmp != 0)

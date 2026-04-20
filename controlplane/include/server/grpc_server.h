@@ -11,7 +11,7 @@
 
 namespace blncr::server {
 
-inline std::string GRPC_SERVER_ADDRESS = "localhost:52001";
+inline std::string GRPC_SERVER_ADDRESS = "0.0.0.0:52001";
 
 class ControlplaneApiServerImpl : public api::L4BalancerApi::Service {
 public:

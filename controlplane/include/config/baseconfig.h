@@ -36,9 +36,10 @@ struct BalancerReal {
     bool enabled;
     uint8_t weight = 1;
     uint8_t ip_version = 4;
+    unsigned int port;
 
     bool operator==(const BalancerReal& real) const {
-        return ip == real.ip && weight == real.weight;
+        return ip == real.ip && weight == real.weight && real.port == port;
     }
 };
 

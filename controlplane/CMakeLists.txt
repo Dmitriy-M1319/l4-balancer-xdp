@@ -4,8 +4,10 @@ project(l4-controlplane)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-# TODO: Make over condition
-add_subdirectory(tests)
+option(L4_BUILD_TESTS "Build unit tests" ON)
+if(L4_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 
 find_package(nlohmann_json REQUIRED)
 set(Boost_USE_STATIC_LIBS ON)
@@ -77,3 +79,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     opentelemetry-cpp::prometheus_exporter
     elf
     gRPC::grpc++ gRPC::grpc gRPC::gpr)
+
+target_compile_options(${PROJECT_NAME} PUBLIC -fsanitize=address)
+target_link_options(${PROJECT_NAME} PUBLIC -fsanitize=address)
+

@@ -54,7 +54,8 @@ std::variant<BaseConfig, std::string> JsonBaseConfigParser::Parse(const std::str
 							for (const auto& real : service["reals"]) {
 								auto ip = real["ip"].get<std::string>();
 								auto weight = real["weight"].get<uint8_t>();
-								reals.push_back(std::move(BalancerReal{ip, false, weight}));
+								bool enabled = real.value("enabled", true);
+							reals.push_back(std::move(BalancerReal{.ip=ip, .enabled=enabled, .weight=weight, .port=port}));
 							}
 						}
 					}

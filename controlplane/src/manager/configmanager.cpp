@@ -2,8 +2,8 @@
 #include "baseconfig.h"
 #include <algorithm>
 #include <format>
-#include <iterator>
 #include <optional>
+#include <iostream>
 
 using namespace blncr;
 
@@ -12,7 +12,10 @@ manager::ConfigManager::ConfigManager(std::shared_ptr<IDataplane> dataplane): m_
 void manager::ConfigManager::LoadConfig(config::BaseConfig&& config) {
     m_currConfig.reset(new config::BaseConfig(std::move(config)));
     if (m_dataplane) {
-        m_dataplane->ReloadConfig(*m_currConfig);
+        auto error = m_dataplane->ReloadConfig(*m_currConfig);
+        if(error.has_value()) {
+            std::cerr << "[ERROR]: " << *error << std::endl;
+        }
     }
 }
 
