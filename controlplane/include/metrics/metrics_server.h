@@ -33,7 +33,9 @@ public:
     
 private:
     void scrapMetrics();
-    void calculateRates();
+    void calculateRates(const std::map<BackendInfo, MetricsData>& currentBackend,
+                        const std::map<ServiceInfo, MetricsData>& currentService,
+                        double elapsed);
     
 private:
     std::shared_ptr<IMetricsProvider> m_provider;

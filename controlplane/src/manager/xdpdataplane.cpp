@@ -310,7 +310,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 {
 	if (isValidBpfState())
 	{
-
+		m_currConfig = config;
 		struct
 		{
 			uint32_t ipv4;
@@ -318,11 +318,11 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 			uint8_t _pad[2];
 		} lb_cfg = {};
 
-		//TODO: Remove hardcore
+		// TODO: Remove hardcore
 		lb_cfg.ipv4 = inet_addr("192.168.122.1"); // IP virbr0
-        uint8_t virbr0_mac[6] = {0x52, 0x54,0x00, 0xbe, 0xc2, 0x5f};
+		uint8_t virbr0_mac[6] = {0x52, 0x54, 0x00, 0xbe, 0xc2, 0x5f};
 		memcpy(lb_cfg.mac, virbr0_mac, 6);
-        __u32 zero = 0;
+		__u32 zero = 0;
 		bpf_map_update_elem(m_lbConfigMapFd, &zero, &lb_cfg, BPF_ANY);
 
 		int currentBackendIdx = 0;
@@ -721,8 +721,6 @@ std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDatapl
 	return results;
 }
 
-// TODO: ip_address
-
 std::map<metrics::BackendInfo, metrics::MetricsData> manager::XdpDataplane::GetBackendsCurrentMetrics()
 {
 	auto backendsStats = GetBackendsMetrics();
@@ -730,7 +728,10 @@ std::map<metrics::BackendInfo, metrics::MetricsData> manager::XdpDataplane::GetB
 
 	for (const auto& [backend, stats] : backendsStats)
 	{
-		result[metrics::BackendInfo{.port = backend.port, .ip_version = backend.ip_version}] = metrics::MetricsData{
+		char buf[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &backend.ipv4, buf, sizeof(buf));
+		std::string strIp(buf);
+		result[metrics::BackendInfo{.ip_address = strIp, .port = backend.port, .ip_version = backend.ip_version}] = metrics::MetricsData{
 		        .total_packets = stats.total_packets,
 		        .tcp_syn_packets = stats.tcp_syn_packets,
 		        .prepared_packets = stats.prepared_packets,
@@ -741,7 +742,6 @@ std::map<metrics::BackendInfo, metrics::MetricsData> manager::XdpDataplane::GetB
 	return result;
 }
 
-// TODO: ip_address and name
 std::map<metrics::ServiceInfo, metrics::MetricsData> manager::XdpDataplane::GetServicesCurrentMetrics()
 {
 	auto servicesStats = GetServicesMetrics();
@@ -749,7 +749,15 @@ std::map<metrics::ServiceInfo, metrics::MetricsData> manager::XdpDataplane::GetS
 
 	for (const auto& [service, stats] : servicesStats)
 	{
-		result[metrics::ServiceInfo{.port = service.port, .ip_version = service.ip_version }] = metrics::MetricsData{
+		char buf[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &service.vip4, buf, sizeof(buf));
+		std::string strIp(buf);
+		std::string name{};
+		auto srv = m_currConfig.FindServiceByVipAndPort(strIp, service.port);
+		if(srv.has_value()) {
+			name = srv->name;
+		}
+		result[metrics::ServiceInfo{.name = name, .vip_address = strIp, .port = service.port, .ip_version = service.ip_version}] = metrics::MetricsData{
 		        .total_packets = stats.total_packets,
 		        .tcp_syn_packets = stats.tcp_syn_packets,
 		        .prepared_packets = stats.prepared_packets,

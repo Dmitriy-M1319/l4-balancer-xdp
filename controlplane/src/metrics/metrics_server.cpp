@@ -136,8 +136,11 @@ MetricsServer::~MetricsServer() {
 
 void MetricsServer::scrapMetrics() {
     try {
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - m_prevTimestamp).count();
+
         auto currentBackendMetrics = m_provider->GetBackendsCurrentMetrics();
-        
+
         for (const auto& [backend, currentMetric] : currentBackendMetrics) {
             std::map<std::string, std::string> labels = {
                 {"backend", backend.ip_address},
@@ -146,31 +149,24 @@ void MetricsServer::scrapMetrics() {
             };
 
             auto prevIt = m_prevBackendMetrics.find(backend);
-            
             if (prevIt != m_prevBackendMetrics.end()) {
-                const auto& prevMetric = prevIt->second;
-                
-                uint64_t delta_packets = currentMetric.total_packets - prevMetric.total_packets;
-                uint64_t delta_syn = currentMetric.tcp_syn_packets - prevMetric.tcp_syn_packets;
-                uint64_t delta_prepared = currentMetric.prepared_packets - prevMetric.prepared_packets;
-                uint64_t delta_bytes = currentMetric.total_bytes - prevMetric.total_bytes;
-                
-                m_backend_total_packets->Add(delta_packets, labels);
-                m_backend_tcp_syn_packets->Add(delta_syn, labels);
-                m_backend_prepared_packets->Add(delta_prepared, labels);
-                m_backend_total_bytes->Add(delta_bytes, labels);
+                const auto& prev = prevIt->second;
+                m_backend_total_packets->Add(currentMetric.total_packets - prev.total_packets, labels);
+                m_backend_tcp_syn_packets->Add(currentMetric.tcp_syn_packets - prev.tcp_syn_packets, labels);
+                m_backend_prepared_packets->Add(currentMetric.prepared_packets - prev.prepared_packets, labels);
+                m_backend_total_bytes->Add(currentMetric.total_bytes - prev.total_bytes, labels);
             } else {
                 m_backend_total_packets->Add(currentMetric.total_packets, labels);
                 m_backend_tcp_syn_packets->Add(currentMetric.tcp_syn_packets, labels);
                 m_backend_prepared_packets->Add(currentMetric.prepared_packets, labels);
                 m_backend_total_bytes->Add(currentMetric.total_bytes, labels);
             }
-            
-            m_backend_connections->Record(currentMetric.connections, labels);
+
+            m_backend_connections->Record(static_cast<int64_t>(currentMetric.connections), labels);
         }
 
         auto currentServiceMetrics = m_provider->GetServicesCurrentMetrics();
-        
+
         for (const auto& [service, currentMetric] : currentServiceMetrics) {
             std::map<std::string, std::string> labels = {
                 {"service", service.name},
@@ -180,108 +176,79 @@ void MetricsServer::scrapMetrics() {
             };
 
             auto prevIt = m_prevServiceMetrics.find(service);
-            
             if (prevIt != m_prevServiceMetrics.end()) {
-                const auto& prevMetric = prevIt->second;
-                
-                uint64_t delta_packets = currentMetric.total_packets - prevMetric.total_packets;
-                uint64_t delta_syn = currentMetric.tcp_syn_packets - prevMetric.tcp_syn_packets;
-                uint64_t delta_prepared = currentMetric.prepared_packets - prevMetric.prepared_packets;
-                uint64_t delta_bytes = currentMetric.total_bytes - prevMetric.total_bytes;
-                
-                m_service_total_packets->Add(delta_packets, labels);
-                m_service_tcp_syn_packets->Add(delta_syn, labels);
-                m_service_prepared_packets->Add(delta_prepared, labels);
-                m_service_total_bytes->Add(delta_bytes, labels);
+                const auto& prev = prevIt->second;
+                m_service_total_packets->Add(currentMetric.total_packets - prev.total_packets, labels);
+                m_service_tcp_syn_packets->Add(currentMetric.tcp_syn_packets - prev.tcp_syn_packets, labels);
+                m_service_prepared_packets->Add(currentMetric.prepared_packets - prev.prepared_packets, labels);
+                m_service_total_bytes->Add(currentMetric.total_bytes - prev.total_bytes, labels);
             } else {
                 m_service_total_packets->Add(currentMetric.total_packets, labels);
                 m_service_tcp_syn_packets->Add(currentMetric.tcp_syn_packets, labels);
                 m_service_prepared_packets->Add(currentMetric.prepared_packets, labels);
                 m_service_total_bytes->Add(currentMetric.total_bytes, labels);
             }
-            
-            m_service_connections->Record(currentMetric.connections, labels);
+
+            m_service_connections->Record(static_cast<int64_t>(currentMetric.connections), labels);
         }
 
-        calculateRates();
+        // Rates require at least one previous sample and a meaningful elapsed time
+        if (!m_prevBackendMetrics.empty() && elapsed > 0.001) {
+            calculateRates(currentBackendMetrics, currentServiceMetrics, elapsed);
+        }
 
+        m_prevTimestamp = now;
         m_prevBackendMetrics = std::move(currentBackendMetrics);
         m_prevServiceMetrics = std::move(currentServiceMetrics);
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Error scraping metrics: " << e.what() << std::endl;
     }
 }
 
 
-void MetricsServer::calculateRates() {
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration<double>(now - m_prevTimestamp).count();
-    
-    if (elapsed < 0.001) {
-        return;
-    }
-    
-    auto currentBackendMetrics = m_provider->GetBackendsCurrentMetrics();
-    
-    for (const auto& [backend, currentMetric] : currentBackendMetrics) {
+void MetricsServer::calculateRates(const std::map<BackendInfo, MetricsData>& currentBackend,
+                                    const std::map<ServiceInfo, MetricsData>& currentService,
+                                    double elapsed)
+{
+    for (const auto& [backend, currentMetric] : currentBackend) {
         auto prevIt = m_prevBackendMetrics.find(backend);
-        if (prevIt == m_prevBackendMetrics.end()) {
-            continue;  
-        }
-        
-        const auto& prevMetric = prevIt->second;
-        
-        uint64_t delta_packets = currentMetric.total_packets - prevMetric.total_packets;
-        uint64_t delta_bytes = currentMetric.total_bytes - prevMetric.total_bytes;
-        uint64_t delta_syn = currentMetric.tcp_syn_packets - prevMetric.tcp_syn_packets;
-        
-        double pps = static_cast<double>(delta_packets) / elapsed;
-        double bps = static_cast<double>(delta_bytes) / elapsed;
-        double syn_ps = static_cast<double>(delta_syn) / elapsed;
-        
+        if (prevIt == m_prevBackendMetrics.end()) continue;
+
+        const auto& prev = prevIt->second;
         std::map<std::string, std::string> labels = {
             {"backend", backend.ip_address},
             {"port", std::format("{}", backend.port)},
             {"ip_version", backend.ip_version == 4 ? "4" : "6"}
         };
-        
-        m_backend_packets_per_sec->Record(pps, labels);
-        m_backend_bytes_per_sec->Record(bps, labels);
-        m_backend_syn_per_sec->Record(syn_ps, labels);
+
+        m_backend_packets_per_sec->Record(
+            static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
+        m_backend_bytes_per_sec->Record(
+            static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
+        m_backend_syn_per_sec->Record(
+            static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
     }
-    
-    auto currentServiceMetrics = m_provider->GetServicesCurrentMetrics();
-    
-    for (const auto& [service, currentMetric] : currentServiceMetrics) {
+
+    for (const auto& [service, currentMetric] : currentService) {
         auto prevIt = m_prevServiceMetrics.find(service);
-        if (prevIt == m_prevServiceMetrics.end()) {
-            continue;
-        }
-        
-        const auto& prevMetric = prevIt->second;
-        
-        uint64_t delta_packets = currentMetric.total_packets - prevMetric.total_packets;
-        uint64_t delta_bytes = currentMetric.total_bytes - prevMetric.total_bytes;
-        uint64_t delta_syn = currentMetric.tcp_syn_packets - prevMetric.tcp_syn_packets;
-        
-        double pps = static_cast<double>(delta_packets) / elapsed;
-        double bps = static_cast<double>(delta_bytes) / elapsed;
-        double syn_ps = static_cast<double>(delta_syn) / elapsed;
-        
+        if (prevIt == m_prevServiceMetrics.end()) continue;
+
+        const auto& prev = prevIt->second;
         std::map<std::string, std::string> labels = {
             {"service", service.name},
             {"vip", service.vip_address},
             {"port", std::format("{}", service.port)},
             {"ip_version", service.ip_version == 4 ? "4" : "6"}
         };
-        
-        m_service_packets_per_sec->Record(pps, labels);
-        m_service_bytes_per_sec->Record(bps, labels);
-        m_service_syn_per_sec->Record(syn_ps, labels);
+
+        m_service_packets_per_sec->Record(
+            static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
+        m_service_bytes_per_sec->Record(
+            static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
+        m_service_syn_per_sec->Record(
+            static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
     }
-    
-    m_prevTimestamp = now;
 }
 
 void MetricsServer::Serve() {

@@ -96,9 +96,10 @@ struct PacketsData {
     __u64 total_packets;
     __u64 tcp_syn_packets;
     __u64 prepared_packets;
-    __u32 connections;
+    __s32 connections; // signed: matches BPF __s32, allows per-CPU cancellation
+    __u32 _pad;
     __u64 total_bytes;
-} __attribute__((packed));
+};
 
 }
 }
@@ -112,7 +113,9 @@ struct std::hash<blncr::manager::xdp::ServiceKey> {
         } else {
             hash = XXH3_64bits(&key.vip6, 16);
         }
-        hash ^= (key.port << 16) ^ (key.protocol << 24) ^ (key.ip_version << 32);
+        hash ^= (static_cast<size_t>(key.port) << 16)
+              ^ (static_cast<size_t>(key.protocol) << 24)
+              ^ (static_cast<size_t>(key.ip_version) << 32);
         return hash;
     }
 };

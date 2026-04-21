@@ -25,6 +25,9 @@ struct reverse_nat_val {
     __u32 vip;          // original VIP to restore in src
     __u16 vip_port;     // original VIP port — network byte order
     __u8  client_mac[6]; // client MAC for L2 rewrite
+    __u32 backend_idx;  // for connection counter decrement on server FIN/RST
+    __u16 client_port;  // client ephemeral port (nbo) — to rebuild session key
+    __u8  _pad[2];
 };
 
 struct {
@@ -223,7 +226,8 @@ struct summary_packets_data {
     __u64 total_packets;
     __u64 tcp_syn_packets;
     __u64 prepared_packets;
-    __u32 connections;
+    __s32 connections; // signed: SYN/FIN may land on different CPUs, must cancel correctly
+    __u32 _pad;
     __u64 total_bytes;
 };
 
@@ -499,10 +503,11 @@ static __always_inline struct backend *wrr_balancer_handle(void *current_back_ma
 
 // ======================== BACKEND LOOKUP (TCP) =============================
 
-static __always_inline struct backend *find_tcp_backend(struct session_state_key *state_key, 
+static __always_inline struct backend *find_tcp_backend(struct session_state_key *state_key,
                                                         struct service_key *key,
                                                         struct tcphdr *tcp,
-                                                        __u32 packet_len) 
+                                                        __u32 packet_len,
+                                                        __u32 *out_backend_idx)
 {
     __u32 last_backend_index = 0;
     struct session_state_val *state_backend = (struct session_state_val *)0;

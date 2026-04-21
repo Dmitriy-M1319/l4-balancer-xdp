@@ -47,7 +47,7 @@ struct MetricsData {
     uint64_t total_packets;
     uint64_t tcp_syn_packets;
     uint64_t prepared_packets;
-    uint32_t connections;
+    int32_t connections;
     uint64_t total_bytes;
 };
 

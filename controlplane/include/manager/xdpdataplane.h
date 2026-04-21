@@ -78,6 +78,7 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
     std::vector<xdp::Backend> m_xdpBackends;
     std::vector<xdp::ServiceKey> m_xdpKeys;
     std::vector<xdp::ServiceInfo> m_xdpServices;
+    config::BaseConfig m_currConfig;
 
 public:
     explicit XdpDataplane(const std::string& name, const std::string& iface);

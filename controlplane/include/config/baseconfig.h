@@ -74,6 +74,16 @@ struct BaseConfig {
     bool operator==(BaseConfig&& conf) const {
         return std::equal(services.begin(), services.end(), conf.services.begin()); 
     }
+
+    std::optional<BalancerService> FindServiceByVipAndPort(const std::string& vip, uint32_t port) const {
+        auto srv = std::find_if(services.begin(), services.end(), [&](const BalancerService& s) {
+            return s.vip == vip && s.port == port;
+        });
+
+        if(srv == services.end())
+            return std::nullopt;
+        return *srv;
+    }
 };
 
 } // config
