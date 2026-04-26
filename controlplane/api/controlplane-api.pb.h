@@ -52,12 +52,18 @@ extern BackendDefaultTypeInternal _Backend_default_instance_;
 class BackendInfo;
 struct BackendInfoDefaultTypeInternal;
 extern BackendInfoDefaultTypeInternal _BackendInfo_default_instance_;
+class BlackListInfo;
+struct BlackListInfoDefaultTypeInternal;
+extern BlackListInfoDefaultTypeInternal _BlackListInfo_default_instance_;
 class Configuration;
 struct ConfigurationDefaultTypeInternal;
 extern ConfigurationDefaultTypeInternal _Configuration_default_instance_;
 class EmptyMessage;
 struct EmptyMessageDefaultTypeInternal;
 extern EmptyMessageDefaultTypeInternal _EmptyMessage_default_instance_;
+class GetBlackListResponse;
+struct GetBlackListResponseDefaultTypeInternal;
+extern GetBlackListResponseDefaultTypeInternal _GetBlackListResponse_default_instance_;
 class GetConfigRequest;
 struct GetConfigRequestDefaultTypeInternal;
 extern GetConfigRequestDefaultTypeInternal _GetConfigRequest_default_instance_;
@@ -104,8 +110,10 @@ extern UpdateConfigResponseDefaultTypeInternal _UpdateConfigResponse_default_ins
 PROTOBUF_NAMESPACE_OPEN
 template<> ::api::Backend* Arena::CreateMaybeMessage<::api::Backend>(Arena*);
 template<> ::api::BackendInfo* Arena::CreateMaybeMessage<::api::BackendInfo>(Arena*);
+template<> ::api::BlackListInfo* Arena::CreateMaybeMessage<::api::BlackListInfo>(Arena*);
 template<> ::api::Configuration* Arena::CreateMaybeMessage<::api::Configuration>(Arena*);
 template<> ::api::EmptyMessage* Arena::CreateMaybeMessage<::api::EmptyMessage>(Arena*);
+template<> ::api::GetBlackListResponse* Arena::CreateMaybeMessage<::api::GetBlackListResponse>(Arena*);
 template<> ::api::GetConfigRequest* Arena::CreateMaybeMessage<::api::GetConfigRequest>(Arena*);
 template<> ::api::GetConfigResponse* Arena::CreateMaybeMessage<::api::GetConfigResponse>(Arena*);
 template<> ::api::ListBackendsRequest* Arena::CreateMaybeMessage<::api::ListBackendsRequest>(Arena*);
@@ -3292,6 +3300,327 @@ class EmptyMessage final :
   };
   friend struct ::TableStruct_api_2fcontrolplane_2dapi_2eproto;
 };
+// -------------------------------------------------------------------
+
+class BlackListInfo final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:api.BlackListInfo) */ {
+ public:
+  inline BlackListInfo() : BlackListInfo(nullptr) {}
+  ~BlackListInfo() override;
+  explicit PROTOBUF_CONSTEXPR BlackListInfo(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  BlackListInfo(const BlackListInfo& from);
+  BlackListInfo(BlackListInfo&& from) noexcept
+    : BlackListInfo() {
+    *this = ::std::move(from);
+  }
+
+  inline BlackListInfo& operator=(const BlackListInfo& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline BlackListInfo& operator=(BlackListInfo&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const BlackListInfo& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const BlackListInfo* internal_default_instance() {
+    return reinterpret_cast<const BlackListInfo*>(
+               &_BlackListInfo_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    18;
+
+  friend void swap(BlackListInfo& a, BlackListInfo& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(BlackListInfo* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(BlackListInfo* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  BlackListInfo* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<BlackListInfo>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const BlackListInfo& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const BlackListInfo& from) {
+    BlackListInfo::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  uint8_t* _InternalSerialize(
+      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(BlackListInfo* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "api.BlackListInfo";
+  }
+  protected:
+  explicit BlackListInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kIpAddressFieldNumber = 1,
+    kTimestampFieldNumber = 2,
+  };
+  // string ip_address = 1;
+  void clear_ip_address();
+  const std::string& ip_address() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_ip_address(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_ip_address();
+  PROTOBUF_NODISCARD std::string* release_ip_address();
+  void set_allocated_ip_address(std::string* ip_address);
+  private:
+  const std::string& _internal_ip_address() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_ip_address(const std::string& value);
+  std::string* _internal_mutable_ip_address();
+  public:
+
+  // uint64 timestamp = 2;
+  void clear_timestamp();
+  uint64_t timestamp() const;
+  void set_timestamp(uint64_t value);
+  private:
+  uint64_t _internal_timestamp() const;
+  void _internal_set_timestamp(uint64_t value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:api.BlackListInfo)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr ip_address_;
+    uint64_t timestamp_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_api_2fcontrolplane_2dapi_2eproto;
+};
+// -------------------------------------------------------------------
+
+class GetBlackListResponse final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:api.GetBlackListResponse) */ {
+ public:
+  inline GetBlackListResponse() : GetBlackListResponse(nullptr) {}
+  ~GetBlackListResponse() override;
+  explicit PROTOBUF_CONSTEXPR GetBlackListResponse(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  GetBlackListResponse(const GetBlackListResponse& from);
+  GetBlackListResponse(GetBlackListResponse&& from) noexcept
+    : GetBlackListResponse() {
+    *this = ::std::move(from);
+  }
+
+  inline GetBlackListResponse& operator=(const GetBlackListResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline GetBlackListResponse& operator=(GetBlackListResponse&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const GetBlackListResponse& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const GetBlackListResponse* internal_default_instance() {
+    return reinterpret_cast<const GetBlackListResponse*>(
+               &_GetBlackListResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    19;
+
+  friend void swap(GetBlackListResponse& a, GetBlackListResponse& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(GetBlackListResponse* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(GetBlackListResponse* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  GetBlackListResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<GetBlackListResponse>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const GetBlackListResponse& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const GetBlackListResponse& from) {
+    GetBlackListResponse::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  uint8_t* _InternalSerialize(
+      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(GetBlackListResponse* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "api.GetBlackListResponse";
+  }
+  protected:
+  explicit GetBlackListResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kListFieldNumber = 1,
+  };
+  // repeated .api.BlackListInfo list = 1;
+  int list_size() const;
+  private:
+  int _internal_list_size() const;
+  public:
+  void clear_list();
+  ::api::BlackListInfo* mutable_list(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::api::BlackListInfo >*
+      mutable_list();
+  private:
+  const ::api::BlackListInfo& _internal_list(int index) const;
+  ::api::BlackListInfo* _internal_add_list();
+  public:
+  const ::api::BlackListInfo& list(int index) const;
+  ::api::BlackListInfo* add_list();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::api::BlackListInfo >&
+      list() const;
+
+  // @@protoc_insertion_point(class_scope:api.GetBlackListResponse)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::api::BlackListInfo > list_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_api_2fcontrolplane_2dapi_2eproto;
+};
 // ===================================================================
 
 
@@ -5340,9 +5669,131 @@ inline void ServiceMetrics::set_total_bytes(uint64_t value) {
 
 // EmptyMessage
 
+// -------------------------------------------------------------------
+
+// BlackListInfo
+
+// string ip_address = 1;
+inline void BlackListInfo::clear_ip_address() {
+  _impl_.ip_address_.ClearToEmpty();
+}
+inline const std::string& BlackListInfo::ip_address() const {
+  // @@protoc_insertion_point(field_get:api.BlackListInfo.ip_address)
+  return _internal_ip_address();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void BlackListInfo::set_ip_address(ArgT0&& arg0, ArgT... args) {
+ 
+ _impl_.ip_address_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:api.BlackListInfo.ip_address)
+}
+inline std::string* BlackListInfo::mutable_ip_address() {
+  std::string* _s = _internal_mutable_ip_address();
+  // @@protoc_insertion_point(field_mutable:api.BlackListInfo.ip_address)
+  return _s;
+}
+inline const std::string& BlackListInfo::_internal_ip_address() const {
+  return _impl_.ip_address_.Get();
+}
+inline void BlackListInfo::_internal_set_ip_address(const std::string& value) {
+  
+  _impl_.ip_address_.Set(value, GetArenaForAllocation());
+}
+inline std::string* BlackListInfo::_internal_mutable_ip_address() {
+  
+  return _impl_.ip_address_.Mutable(GetArenaForAllocation());
+}
+inline std::string* BlackListInfo::release_ip_address() {
+  // @@protoc_insertion_point(field_release:api.BlackListInfo.ip_address)
+  return _impl_.ip_address_.Release();
+}
+inline void BlackListInfo::set_allocated_ip_address(std::string* ip_address) {
+  if (ip_address != nullptr) {
+    
+  } else {
+    
+  }
+  _impl_.ip_address_.SetAllocated(ip_address, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (_impl_.ip_address_.IsDefault()) {
+    _impl_.ip_address_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:api.BlackListInfo.ip_address)
+}
+
+// uint64 timestamp = 2;
+inline void BlackListInfo::clear_timestamp() {
+  _impl_.timestamp_ = uint64_t{0u};
+}
+inline uint64_t BlackListInfo::_internal_timestamp() const {
+  return _impl_.timestamp_;
+}
+inline uint64_t BlackListInfo::timestamp() const {
+  // @@protoc_insertion_point(field_get:api.BlackListInfo.timestamp)
+  return _internal_timestamp();
+}
+inline void BlackListInfo::_internal_set_timestamp(uint64_t value) {
+  
+  _impl_.timestamp_ = value;
+}
+inline void BlackListInfo::set_timestamp(uint64_t value) {
+  _internal_set_timestamp(value);
+  // @@protoc_insertion_point(field_set:api.BlackListInfo.timestamp)
+}
+
+// -------------------------------------------------------------------
+
+// GetBlackListResponse
+
+// repeated .api.BlackListInfo list = 1;
+inline int GetBlackListResponse::_internal_list_size() const {
+  return _impl_.list_.size();
+}
+inline int GetBlackListResponse::list_size() const {
+  return _internal_list_size();
+}
+inline void GetBlackListResponse::clear_list() {
+  _impl_.list_.Clear();
+}
+inline ::api::BlackListInfo* GetBlackListResponse::mutable_list(int index) {
+  // @@protoc_insertion_point(field_mutable:api.GetBlackListResponse.list)
+  return _impl_.list_.Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::api::BlackListInfo >*
+GetBlackListResponse::mutable_list() {
+  // @@protoc_insertion_point(field_mutable_list:api.GetBlackListResponse.list)
+  return &_impl_.list_;
+}
+inline const ::api::BlackListInfo& GetBlackListResponse::_internal_list(int index) const {
+  return _impl_.list_.Get(index);
+}
+inline const ::api::BlackListInfo& GetBlackListResponse::list(int index) const {
+  // @@protoc_insertion_point(field_get:api.GetBlackListResponse.list)
+  return _internal_list(index);
+}
+inline ::api::BlackListInfo* GetBlackListResponse::_internal_add_list() {
+  return _impl_.list_.Add();
+}
+inline ::api::BlackListInfo* GetBlackListResponse::add_list() {
+  ::api::BlackListInfo* _add = _internal_add_list();
+  // @@protoc_insertion_point(field_add:api.GetBlackListResponse.list)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::api::BlackListInfo >&
+GetBlackListResponse::list() const {
+  // @@protoc_insertion_point(field_list:api.GetBlackListResponse.list)
+  return _impl_.list_;
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

@@ -126,6 +126,18 @@ MetricsServer::MetricsServer(std::shared_ptr<IMetricsProvider> provider,
         "pps"
     );
 
+    m_ddos_dropped_total = m_meter->CreateUInt64Counter(
+        "lb_ddos_dropped_packets_total",
+        "Total number of packets dropped by DDoS filter",
+        "packets"
+    );
+
+    m_ddos_blacklist_size = m_meter->CreateInt64Gauge(
+        "lb_ddos_blacklist_size",
+        "Number of currently blocked source IPs",
+        "ips"
+    );
+
     m_prevTimestamp = std::chrono::steady_clock::now();
 }
 
@@ -196,6 +208,13 @@ void MetricsServer::scrapMetrics() {
         if (!m_prevBackendMetrics.empty() && elapsed > 0.001) {
             calculateRates(currentBackendMetrics, currentServiceMetrics, elapsed);
         }
+
+        auto ddos = m_provider->GetDdosStats();
+        if (ddos.dropped_total >= m_prevDroppedTotal) {
+            m_ddos_dropped_total->Add(ddos.dropped_total - m_prevDroppedTotal, {});
+        }
+        m_prevDroppedTotal = ddos.dropped_total;
+        m_ddos_blacklist_size->Record(static_cast<int64_t>(ddos.blacklist_size), {});
 
         m_prevTimestamp = now;
         m_prevBackendMetrics = std::move(currentBackendMetrics);

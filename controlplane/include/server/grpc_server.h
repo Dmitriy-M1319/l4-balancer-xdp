@@ -23,6 +23,7 @@ public:
     grpc::Status ListBackends(grpc::ServerContext *,const api::ListBackendsRequest*, api::ListBackendsResponse*) override;
     grpc::Status SetBackendStatus(grpc::ServerContext *,const api::SetBackendStatusRequest*, api::SetBackendStatusResponse*) override;
     grpc::Status Ping(grpc::ServerContext *,const api::EmptyMessage*, api::EmptyMessage*) override;
+    grpc::Status GetBlackList(grpc::ServerContext*, const api::EmptyMessage*, api::GetBlackListResponse*) override;
 private:
     std::shared_ptr<blncr::manager::ConfigManager> m_cpManager;
 };

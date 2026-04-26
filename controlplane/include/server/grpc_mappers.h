@@ -5,6 +5,7 @@
 #include "metrics_data.h"
 #include <string>
 #include <optional>
+#include <variant>
 
 namespace blncr::server::mappers {
 

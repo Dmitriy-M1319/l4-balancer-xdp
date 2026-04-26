@@ -4,6 +4,7 @@
 #include "idataplane.h"
 #include <memory>
 #include <optional>
+#include <map>
 
 namespace blncr {
 
@@ -34,6 +35,7 @@ public:
     std::vector<config::BalancerService> ListServices() const;
     std::vector<config::BalancerReal> ListBackends() const;
     std::optional<std::string> SetRealState(const command::SetRealStateRequest&);
+    std::map<std::string, unsigned long> GetBlackList() const;
 };
 
 }

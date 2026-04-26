@@ -28,6 +28,7 @@ static const char* L4BalancerApi_method_names[] = {
   "/api.L4BalancerApi/ListBackends",
   "/api.L4BalancerApi/SetBackendStatus",
   "/api.L4BalancerApi/Ping",
+  "/api.L4BalancerApi/GetBlackList",
 };
 
 std::unique_ptr< L4BalancerApi::Stub> L4BalancerApi::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -43,6 +44,7 @@ L4BalancerApi::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& chan
   , rpcmethod_ListBackends_(L4BalancerApi_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_SetBackendStatus_(L4BalancerApi_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_Ping_(L4BalancerApi_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetBlackList_(L4BalancerApi_method_names[6], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status L4BalancerApi::Stub::GetConfig(::grpc::ClientContext* context, const ::api::GetConfigRequest& request, ::api::GetConfigResponse* response) {
@@ -183,6 +185,29 @@ void L4BalancerApi::Stub::async::Ping(::grpc::ClientContext* context, const ::ap
   return result;
 }
 
+::grpc::Status L4BalancerApi::Stub::GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::GetBlackListResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::api::EmptyMessage, ::api::GetBlackListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetBlackList_, context, request, response);
+}
+
+void L4BalancerApi::Stub::async::GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::api::EmptyMessage, ::api::GetBlackListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetBlackList_, context, request, response, std::move(f));
+}
+
+void L4BalancerApi::Stub::async::GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetBlackList_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>* L4BalancerApi::Stub::PrepareAsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::api::GetBlackListResponse, ::api::EmptyMessage, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetBlackList_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>* L4BalancerApi::Stub::AsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetBlackListRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 L4BalancerApi::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       L4BalancerApi_method_names[0],
@@ -244,6 +269,16 @@ L4BalancerApi::Service::Service() {
              ::api::EmptyMessage* resp) {
                return service->Ping(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      L4BalancerApi_method_names[6],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< L4BalancerApi::Service, ::api::EmptyMessage, ::api::GetBlackListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](L4BalancerApi::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::api::EmptyMessage* req,
+             ::api::GetBlackListResponse* resp) {
+               return service->GetBlackList(ctx, req, resp);
+             }, this)));
 }
 
 L4BalancerApi::Service::~Service() {
@@ -285,6 +320,13 @@ L4BalancerApi::Service::~Service() {
 }
 
 ::grpc::Status L4BalancerApi::Service::Ping(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status L4BalancerApi::Service::GetBlackList(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response) {
   (void) context;
   (void) request;
   (void) response;

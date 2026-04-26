@@ -16,7 +16,15 @@
         balancer: rr (wrr, ch (only for TCP, another exception))
     },
     ...
- ]
+ ],
+
+ --- Optional DDoS Config
+ ddos_config: {
+    syn_threshold: 5,
+    syn_ack_ratio: 500,       
+    global_syn_threshold: 20,
+    ban_duration_ms: 20000,
+ }
 
 */
 

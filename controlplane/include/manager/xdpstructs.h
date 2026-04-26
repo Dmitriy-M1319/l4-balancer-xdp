@@ -101,6 +101,20 @@ struct PacketsData {
     __u64 total_bytes;
 };
 
+
+struct DDoSConfiguration {
+    __u32 syn_threshold;
+    __u32 syn_ack_ratio;
+    __u32 global_syn_threshold;
+    __u64 ban_duration_ns;
+};
+
+struct GlobalSynStats {
+    __u64 syn_count;     // windowed (resets every window)
+    __u64 window_start;
+    __u64 dropped_total; // cumulative dropped packets
+};
+
 }
 }
 

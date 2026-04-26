@@ -66,6 +66,12 @@ func (c *Client) GetConfig() (*pb.GetConfigResponse, error) {
 	return c.api.GetConfig(ctx, &pb.GetConfigRequest{})
 }
 
+func (c *Client) GetBlackList() (*pb.GetBlackListResponse, error) {
+	ctx, cancel := c.ctx()
+	defer cancel()
+	return c.api.GetBlackList(ctx, &pb.EmptyMessage{})
+}
+
 func (c *Client) UpdateConfig(cfg *pb.Configuration) (*pb.UpdateConfigResponse, error) {
 	ctx, cancel := c.ctx()
 	defer cancel()

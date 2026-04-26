@@ -18,7 +18,6 @@ enum class BalancerType {
 };
 
 
-
 inline std::optional<BalancerType> fromString(const std::string& data) {
     if(data == "rr") {
         return BalancerType::RR;
@@ -63,9 +62,16 @@ struct BalancerService {
     }
 };
 
+struct DDoSConfig {
+    unsigned int syn_threshold; // max of syn packets by windows
+    unsigned int syn_ack_ratio;       
+    unsigned int global_syn_threshold; // global SYN per second for VIP
+    unsigned int ban_duration_ms; // milliseconds
+};
+
 struct BaseConfig {
     std::vector<BalancerService> services;
-
+    std::optional<DDoSConfig> ddosConf = std::nullopt;
 
     bool operator==(const BaseConfig& conf) const {
         return std::equal(services.begin(), services.end(), conf.services.begin()); 

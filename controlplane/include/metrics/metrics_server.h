@@ -67,10 +67,14 @@ private:
     opentelemetry::nostd::unique_ptr<metrics_api::Gauge<double>> m_service_packets_per_sec;
     opentelemetry::nostd::unique_ptr<metrics_api::Gauge<double>> m_service_bytes_per_sec;
     opentelemetry::nostd::unique_ptr<metrics_api::Gauge<double>> m_service_syn_per_sec;
-    
+
+    opentelemetry::nostd::unique_ptr<metrics_api::Counter<uint64_t>> m_ddos_dropped_total;
+    opentelemetry::nostd::unique_ptr<metrics_api::Gauge<int64_t>> m_ddos_blacklist_size;
+
     std::map<BackendInfo, MetricsData> m_prevBackendMetrics;
     std::map<ServiceInfo, MetricsData> m_prevServiceMetrics;
     std::chrono::steady_clock::time_point m_prevTimestamp;
+    uint64_t m_prevDroppedTotal{0};
 };
 
 } 

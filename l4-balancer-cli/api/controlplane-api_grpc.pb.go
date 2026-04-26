@@ -25,6 +25,7 @@ const (
 	L4BalancerApi_ListBackends_FullMethodName     = "/api.L4BalancerApi/ListBackends"
 	L4BalancerApi_SetBackendStatus_FullMethodName = "/api.L4BalancerApi/SetBackendStatus"
 	L4BalancerApi_Ping_FullMethodName             = "/api.L4BalancerApi/Ping"
+	L4BalancerApi_GetBlackList_FullMethodName     = "/api.L4BalancerApi/GetBlackList"
 )
 
 // L4BalancerApiClient is the client API for L4BalancerApi service.
@@ -37,6 +38,7 @@ type L4BalancerApiClient interface {
 	ListBackends(ctx context.Context, in *ListBackendsRequest, opts ...grpc.CallOption) (*ListBackendsResponse, error)
 	SetBackendStatus(ctx context.Context, in *SetBackendStatusRequest, opts ...grpc.CallOption) (*SetBackendStatusResponse, error)
 	Ping(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*EmptyMessage, error)
+	GetBlackList(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*GetBlackListResponse, error)
 }
 
 type l4BalancerApiClient struct {
@@ -107,6 +109,16 @@ func (c *l4BalancerApiClient) Ping(ctx context.Context, in *EmptyMessage, opts .
 	return out, nil
 }
 
+func (c *l4BalancerApiClient) GetBlackList(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*GetBlackListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBlackListResponse)
+	err := c.cc.Invoke(ctx, L4BalancerApi_GetBlackList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // L4BalancerApiServer is the server API for L4BalancerApi service.
 // All implementations must embed UnimplementedL4BalancerApiServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type L4BalancerApiServer interface {
 	ListBackends(context.Context, *ListBackendsRequest) (*ListBackendsResponse, error)
 	SetBackendStatus(context.Context, *SetBackendStatusRequest) (*SetBackendStatusResponse, error)
 	Ping(context.Context, *EmptyMessage) (*EmptyMessage, error)
+	GetBlackList(context.Context, *EmptyMessage) (*GetBlackListResponse, error)
 	mustEmbedUnimplementedL4BalancerApiServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedL4BalancerApiServer) SetBackendStatus(context.Context, *SetBa
 }
 func (UnimplementedL4BalancerApiServer) Ping(context.Context, *EmptyMessage) (*EmptyMessage, error) {
 	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedL4BalancerApiServer) GetBlackList(context.Context, *EmptyMessage) (*GetBlackListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBlackList not implemented")
 }
 func (UnimplementedL4BalancerApiServer) mustEmbedUnimplementedL4BalancerApiServer() {}
 func (UnimplementedL4BalancerApiServer) testEmbeddedByValue()                       {}
@@ -274,6 +290,24 @@ func _L4BalancerApi_Ping_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _L4BalancerApi_GetBlackList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmptyMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(L4BalancerApiServer).GetBlackList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: L4BalancerApi_GetBlackList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(L4BalancerApiServer).GetBlackList(ctx, req.(*EmptyMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // L4BalancerApi_ServiceDesc is the grpc.ServiceDesc for L4BalancerApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var L4BalancerApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _L4BalancerApi_Ping_Handler,
+		},
+		{
+			MethodName: "GetBlackList",
+			Handler:    _L4BalancerApi_GetBlackList_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

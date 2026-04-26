@@ -57,10 +57,16 @@ struct RateMetrics {
     double syn_per_sec;
 };
 
+struct DdosStats {
+    uint64_t dropped_total;   // cumulative dropped packets
+    uint64_t blacklist_size;  // number of currently blocked IPs
+};
+
 class IMetricsProvider {
 public:
     virtual std::map<BackendInfo, MetricsData> GetBackendsCurrentMetrics() = 0;
     virtual std::map<ServiceInfo, MetricsData> GetServicesCurrentMetrics() = 0;
+    virtual DdosStats GetDdosStats() = 0;
 };
 
 }

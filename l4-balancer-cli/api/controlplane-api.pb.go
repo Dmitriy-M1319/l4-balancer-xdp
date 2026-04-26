@@ -1069,6 +1069,102 @@ func (*EmptyMessage) Descriptor() ([]byte, []int) {
 	return file_api_controlplane_api_proto_rawDescGZIP(), []int{17}
 }
 
+type BlackListInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IpAddress     string                 `protobuf:"bytes,1,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
+	Timestamp     uint64                 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlackListInfo) Reset() {
+	*x = BlackListInfo{}
+	mi := &file_api_controlplane_api_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlackListInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlackListInfo) ProtoMessage() {}
+
+func (x *BlackListInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_api_controlplane_api_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlackListInfo.ProtoReflect.Descriptor instead.
+func (*BlackListInfo) Descriptor() ([]byte, []int) {
+	return file_api_controlplane_api_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *BlackListInfo) GetIpAddress() string {
+	if x != nil {
+		return x.IpAddress
+	}
+	return ""
+}
+
+func (x *BlackListInfo) GetTimestamp() uint64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+type GetBlackListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*BlackListInfo       `protobuf:"bytes,1,rep,name=list,proto3" json:"list,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBlackListResponse) Reset() {
+	*x = GetBlackListResponse{}
+	mi := &file_api_controlplane_api_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBlackListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBlackListResponse) ProtoMessage() {}
+
+func (x *GetBlackListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_controlplane_api_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBlackListResponse.ProtoReflect.Descriptor instead.
+func (*GetBlackListResponse) Descriptor() ([]byte, []int) {
+	return file_api_controlplane_api_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetBlackListResponse) GetList() []*BlackListInfo {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
 var File_api_controlplane_api_proto protoreflect.FileDescriptor
 
 const file_api_controlplane_api_proto_rawDesc = "" +
@@ -1153,14 +1249,21 @@ const file_api_controlplane_api_proto_rawDesc = "" +
 	"\x12active_connections\x18\x04 \x01(\rR\x11activeConnections\x12\x1f\n" +
 	"\vtotal_bytes\x18\x05 \x01(\x04R\n" +
 	"totalBytes\"\x0e\n" +
-	"\fEmptyMessage2\x99\x03\n" +
+	"\fEmptyMessage\"L\n" +
+	"\rBlackListInfo\x12\x1d\n" +
+	"\n" +
+	"ip_address\x18\x01 \x01(\tR\tipAddress\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\x04R\ttimestamp\">\n" +
+	"\x14GetBlackListResponse\x12&\n" +
+	"\x04list\x18\x01 \x03(\v2\x12.api.BlackListInfoR\x04list2\xd7\x03\n" +
 	"\rL4BalancerApi\x12:\n" +
 	"\tGetConfig\x12\x15.api.GetConfigRequest\x1a\x16.api.GetConfigResponse\x12C\n" +
 	"\fUpdateConfig\x12\x18.api.UpdateConfigRequest\x1a\x19.api.UpdateConfigResponse\x12C\n" +
 	"\fListServices\x12\x18.api.ListServicesRequest\x1a\x19.api.ListServicesResponse\x12C\n" +
 	"\fListBackends\x12\x18.api.ListBackendsRequest\x1a\x19.api.ListBackendsResponse\x12O\n" +
 	"\x10SetBackendStatus\x12\x1c.api.SetBackendStatusRequest\x1a\x1d.api.SetBackendStatusResponse\x12,\n" +
-	"\x04Ping\x12\x11.api.EmptyMessage\x1a\x11.api.EmptyMessageB2Z0github.com/Dmitriy-M1319/l4-controlplane/api;apib\x06proto3"
+	"\x04Ping\x12\x11.api.EmptyMessage\x1a\x11.api.EmptyMessage\x12<\n" +
+	"\fGetBlackList\x12\x11.api.EmptyMessage\x1a\x19.api.GetBlackListResponseB2Z0github.com/Dmitriy-M1319/l4-controlplane/api;apib\x06proto3"
 
 var (
 	file_api_controlplane_api_proto_rawDescOnce sync.Once
@@ -1174,7 +1277,7 @@ func file_api_controlplane_api_proto_rawDescGZIP() []byte {
 	return file_api_controlplane_api_proto_rawDescData
 }
 
-var file_api_controlplane_api_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_api_controlplane_api_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_api_controlplane_api_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),         // 0: api.GetConfigRequest
 	(*Backend)(nil),                  // 1: api.Backend
@@ -1194,6 +1297,8 @@ var file_api_controlplane_api_proto_goTypes = []any{
 	(*ListBackendsResponse)(nil),     // 15: api.ListBackendsResponse
 	(*ServiceMetrics)(nil),           // 16: api.ServiceMetrics
 	(*EmptyMessage)(nil),             // 17: api.EmptyMessage
+	(*BlackListInfo)(nil),            // 18: api.BlackListInfo
+	(*GetBlackListResponse)(nil),     // 19: api.GetBlackListResponse
 }
 var file_api_controlplane_api_proto_depIdxs = []int32{
 	1,  // 0: api.Service.backends:type_name -> api.Backend
@@ -1206,23 +1311,26 @@ var file_api_controlplane_api_proto_depIdxs = []int32{
 	16, // 7: api.ServiceInfo.metrics:type_name -> api.ServiceMetrics
 	10, // 8: api.ListServicesResponse.services:type_name -> api.ServiceInfo
 	9,  // 9: api.ListBackendsResponse.backends:type_name -> api.BackendInfo
-	0,  // 10: api.L4BalancerApi.GetConfig:input_type -> api.GetConfigRequest
-	5,  // 11: api.L4BalancerApi.UpdateConfig:input_type -> api.UpdateConfigRequest
-	8,  // 12: api.L4BalancerApi.ListServices:input_type -> api.ListServicesRequest
-	14, // 13: api.L4BalancerApi.ListBackends:input_type -> api.ListBackendsRequest
-	12, // 14: api.L4BalancerApi.SetBackendStatus:input_type -> api.SetBackendStatusRequest
-	17, // 15: api.L4BalancerApi.Ping:input_type -> api.EmptyMessage
-	4,  // 16: api.L4BalancerApi.GetConfig:output_type -> api.GetConfigResponse
-	6,  // 17: api.L4BalancerApi.UpdateConfig:output_type -> api.UpdateConfigResponse
-	11, // 18: api.L4BalancerApi.ListServices:output_type -> api.ListServicesResponse
-	15, // 19: api.L4BalancerApi.ListBackends:output_type -> api.ListBackendsResponse
-	13, // 20: api.L4BalancerApi.SetBackendStatus:output_type -> api.SetBackendStatusResponse
-	17, // 21: api.L4BalancerApi.Ping:output_type -> api.EmptyMessage
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	18, // 10: api.GetBlackListResponse.list:type_name -> api.BlackListInfo
+	0,  // 11: api.L4BalancerApi.GetConfig:input_type -> api.GetConfigRequest
+	5,  // 12: api.L4BalancerApi.UpdateConfig:input_type -> api.UpdateConfigRequest
+	8,  // 13: api.L4BalancerApi.ListServices:input_type -> api.ListServicesRequest
+	14, // 14: api.L4BalancerApi.ListBackends:input_type -> api.ListBackendsRequest
+	12, // 15: api.L4BalancerApi.SetBackendStatus:input_type -> api.SetBackendStatusRequest
+	17, // 16: api.L4BalancerApi.Ping:input_type -> api.EmptyMessage
+	17, // 17: api.L4BalancerApi.GetBlackList:input_type -> api.EmptyMessage
+	4,  // 18: api.L4BalancerApi.GetConfig:output_type -> api.GetConfigResponse
+	6,  // 19: api.L4BalancerApi.UpdateConfig:output_type -> api.UpdateConfigResponse
+	11, // 20: api.L4BalancerApi.ListServices:output_type -> api.ListServicesResponse
+	15, // 21: api.L4BalancerApi.ListBackends:output_type -> api.ListBackendsResponse
+	13, // 22: api.L4BalancerApi.SetBackendStatus:output_type -> api.SetBackendStatusResponse
+	17, // 23: api.L4BalancerApi.Ping:output_type -> api.EmptyMessage
+	19, // 24: api.L4BalancerApi.GetBlackList:output_type -> api.GetBlackListResponse
+	18, // [18:25] is the sub-list for method output_type
+	11, // [11:18] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_api_controlplane_api_proto_init() }
@@ -1240,7 +1348,7 @@ func file_api_controlplane_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_controlplane_api_proto_rawDesc), len(file_api_controlplane_api_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

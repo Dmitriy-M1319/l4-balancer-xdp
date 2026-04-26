@@ -77,6 +77,13 @@ class L4BalancerApi final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>> PrepareAsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>>(PrepareAsyncPingRaw(context, request, cq));
     }
+    virtual ::grpc::Status GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::GetBlackListResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>> AsyncGetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>>(AsyncGetBlackListRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>> PrepareAsyncGetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>>(PrepareAsyncGetBlackListRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -92,6 +99,8 @@ class L4BalancerApi final {
       virtual void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       virtual void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, std::function<void(::grpc::Status)>) = 0;
       virtual void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -109,6 +118,8 @@ class L4BalancerApi final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::SetBackendStatusResponse>* PrepareAsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>* AsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::EmptyMessage>* PrepareAsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>* AsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::api::GetBlackListResponse>* PrepareAsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -155,6 +166,13 @@ class L4BalancerApi final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>> PrepareAsyncPing(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>>(PrepareAsyncPingRaw(context, request, cq));
     }
+    ::grpc::Status GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::api::GetBlackListResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>> AsyncGetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>>(AsyncGetBlackListRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>> PrepareAsyncGetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>>(PrepareAsyncGetBlackListRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -170,6 +188,8 @@ class L4BalancerApi final {
       void SetBackendStatus(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, std::function<void(::grpc::Status)>) override;
       void Ping(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetBlackList(::grpc::ClientContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -193,12 +213,15 @@ class L4BalancerApi final {
     ::grpc::ClientAsyncResponseReader< ::api::SetBackendStatusResponse>* PrepareAsyncSetBackendStatusRaw(::grpc::ClientContext* context, const ::api::SetBackendStatusRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* AsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::api::EmptyMessage>* PrepareAsyncPingRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>* AsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::api::GetBlackListResponse>* PrepareAsyncGetBlackListRaw(::grpc::ClientContext* context, const ::api::EmptyMessage& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_GetConfig_;
     const ::grpc::internal::RpcMethod rpcmethod_UpdateConfig_;
     const ::grpc::internal::RpcMethod rpcmethod_ListServices_;
     const ::grpc::internal::RpcMethod rpcmethod_ListBackends_;
     const ::grpc::internal::RpcMethod rpcmethod_SetBackendStatus_;
     const ::grpc::internal::RpcMethod rpcmethod_Ping_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetBlackList_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -212,6 +235,7 @@ class L4BalancerApi final {
     virtual ::grpc::Status ListBackends(::grpc::ServerContext* context, const ::api::ListBackendsRequest* request, ::api::ListBackendsResponse* response);
     virtual ::grpc::Status SetBackendStatus(::grpc::ServerContext* context, const ::api::SetBackendStatusRequest* request, ::api::SetBackendStatusResponse* response);
     virtual ::grpc::Status Ping(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::EmptyMessage* response);
+    virtual ::grpc::Status GetBlackList(::grpc::ServerContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_GetConfig : public BaseClass {
@@ -333,7 +357,27 @@ class L4BalancerApi final {
       ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_GetConfig<WithAsyncMethod_UpdateConfig<WithAsyncMethod_ListServices<WithAsyncMethod_ListBackends<WithAsyncMethod_SetBackendStatus<WithAsyncMethod_Ping<Service > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodAsync(6);
+    }
+    ~WithAsyncMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetBlackList(::grpc::ServerContext* context, ::api::EmptyMessage* request, ::grpc::ServerAsyncResponseWriter< ::api::GetBlackListResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_GetConfig<WithAsyncMethod_UpdateConfig<WithAsyncMethod_ListServices<WithAsyncMethod_ListBackends<WithAsyncMethod_SetBackendStatus<WithAsyncMethod_Ping<WithAsyncMethod_GetBlackList<Service > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_GetConfig : public BaseClass {
    private:
@@ -496,7 +540,34 @@ class L4BalancerApi final {
     virtual ::grpc::ServerUnaryReactor* Ping(
       ::grpc::CallbackServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_GetConfig<WithCallbackMethod_UpdateConfig<WithCallbackMethod_ListServices<WithCallbackMethod_ListBackends<WithCallbackMethod_SetBackendStatus<WithCallbackMethod_Ping<Service > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodCallback(6,
+          new ::grpc::internal::CallbackUnaryHandler< ::api::EmptyMessage, ::api::GetBlackListResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::api::EmptyMessage* request, ::api::GetBlackListResponse* response) { return this->GetBlackList(context, request, response); }));}
+    void SetMessageAllocatorFor_GetBlackList(
+        ::grpc::MessageAllocator< ::api::EmptyMessage, ::api::GetBlackListResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(6);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::api::EmptyMessage, ::api::GetBlackListResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetBlackList(
+      ::grpc::CallbackServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_GetConfig<WithCallbackMethod_UpdateConfig<WithCallbackMethod_ListServices<WithCallbackMethod_ListBackends<WithCallbackMethod_SetBackendStatus<WithCallbackMethod_Ping<WithCallbackMethod_GetBlackList<Service > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_GetConfig : public BaseClass {
@@ -596,6 +667,23 @@ class L4BalancerApi final {
     }
     // disable synchronous version of this method
     ::grpc::Status Ping(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::EmptyMessage* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodGeneric(6);
+    }
+    ~WithGenericMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -718,6 +806,26 @@ class L4BalancerApi final {
     }
     void RequestPing(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(5, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodRaw(6);
+    }
+    ~WithRawMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetBlackList(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -850,6 +958,28 @@ class L4BalancerApi final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* Ping(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodRawCallback(6,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetBlackList(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetBlackList(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -1014,9 +1144,36 @@ class L4BalancerApi final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedPing(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::api::EmptyMessage,::api::EmptyMessage>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<Service > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetBlackList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetBlackList() {
+      ::grpc::Service::MarkMethodStreamed(6,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::api::EmptyMessage, ::api::GetBlackListResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::api::EmptyMessage, ::api::GetBlackListResponse>* streamer) {
+                       return this->StreamedGetBlackList(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetBlackList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetBlackList(::grpc::ServerContext* /*context*/, const ::api::EmptyMessage* /*request*/, ::api::GetBlackListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetBlackList(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::api::EmptyMessage,::api::GetBlackListResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetBlackList<Service > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<Service > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_GetConfig<WithStreamedUnaryMethod_UpdateConfig<WithStreamedUnaryMethod_ListServices<WithStreamedUnaryMethod_ListBackends<WithStreamedUnaryMethod_SetBackendStatus<WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetBlackList<Service > > > > > > > StreamedService;
 };
 
 }  // namespace api

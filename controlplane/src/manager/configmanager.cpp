@@ -82,3 +82,7 @@ std::vector<config::BalancerReal> manager::ConfigManager::ListBackends() const {
     }
     return reals;
 }
+
+std::map<std::string, unsigned long>  manager::ConfigManager::GetBlackList() const {
+    return m_dataplane->GetBlackList();
+}

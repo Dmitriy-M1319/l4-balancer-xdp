@@ -70,6 +70,34 @@ std::variant<BaseConfig, std::string> JsonBaseConfigParser::Parse(const std::str
 			else {
 				return "services field not found or is not an array of elements";
 			}
+
+			// check on ddos configuration
+			auto ddos = jdata["ddos_config"];
+			if (!ddos.is_null()) {
+				DDoSConfig conf;
+				if (!ddos.contains("syn_threshold")) {
+					return "syn_threshold not found in ddos_config";
+				}
+
+				if (!ddos.contains("syn_ack_ratio")) {
+					return "syn_ack_ratio not found in ddos_config";
+				}
+
+				if (!ddos.contains("global_syn_threshold")) {
+					return "global_syn_threshold not found in ddos_config";
+				}
+
+				if (!ddos.contains("ban_duration_ms")) {
+					return "ban_duration_ms not found in ddos_config";
+				}
+
+				conf.syn_threshold = ddos["syn_threshold"].get<unsigned int>();
+				conf.syn_ack_ratio = ddos["syn_ack_ratio"].get<unsigned int>();
+				conf.global_syn_threshold = ddos["global_syn_threshold"].get<unsigned int>();
+				conf.ban_duration_ms = ddos["ban_duration_ms"].get<unsigned int>();
+				config.ddosConf = conf;
+			}
+
 			return config;
 		}
 		else {

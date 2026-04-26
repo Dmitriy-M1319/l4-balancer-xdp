@@ -11,44 +11,9 @@
 #define BALANCER_CH 0x02
 
 #define TCP_STATE_TIMEOUT 60000000000ULL // 1 minute (in ns)
+#define DDOS_WINDOW_NS      10000000000ULL // 10 sec
+#define DDOS_CLEANUP_NS     60000000000ULL // 1 minute
 
-// ===== Reverse NAT (for return traffic: backend → balancer) =====
-struct reverse_nat_key {
-    __u32 src_ip;    // backend IP (who sends the reply)
-    __u32 dst_ip;    // balancer IP (reply comes to us)
-    __u16 src_port;  // backend port — network byte order
-    __u16 dst_port;  // client ephemeral port — network byte order
-};
-
-struct reverse_nat_val {
-    __u32 client_ip;    // original client IP to restore in dst
-    __u32 vip;          // original VIP to restore in src
-    __u16 vip_port;     // original VIP port — network byte order
-    __u8  client_mac[6]; // client MAC for L2 rewrite
-    __u32 backend_idx;  // for connection counter decrement on server FIN/RST
-    __u16 client_port;  // client ephemeral port (nbo) — to rebuild session key
-    __u8  _pad[2];
-};
-
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 65536);
-    __type(key, struct reverse_nat_key);
-    __type(value, struct reverse_nat_val);
-} reverse_nat SEC(".maps");
-
-struct lb_config_val {
-    __u32 ipv4;
-    __u8  mac[6];
-    __u8  _pad[2];
-};
-
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, 1);
-    __type(key, __u32);
-    __type(value, struct lb_config_val);
-} lb_config SEC(".maps");
 
 // Key: composition VIP + protocol + port
 struct service_key {
@@ -246,6 +211,58 @@ struct {
 } services_packets_stats SEC(".maps");
 
 
+// ================== DDOS PROTECTION STRUCTURES ===============
+
+struct syn_counter {
+    __u64 syn_count;         
+    __u64 ack_count;         
+    __u64 window_start; // timestamp of packets' count beginning 
+    __u64 total_packets;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, 65536);
+    __type(key, __u32);                    // source IPv4
+    __type(value, struct syn_counter);
+} syn_tracker SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 16384);
+    __type(key, __u32);                    // source IPv4
+    __type(value, __u64);                  // timestamp has been blocked
+} blacklist SEC(".maps");
+
+
+struct ddos_config {
+    __u32 syn_threshold;       // max of syn packets by windows
+    __u32 syn_ack_ratio;       
+    __u32 global_syn_threshold; // global SYN per second for VIP
+    __u64 ban_duration_ns;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct ddos_config);
+} ddos_cfg SEC(".maps");
+
+struct global_syn_stats {
+    __u64 syn_count;    // windowed counter (resets every DDOS_WINDOW_NS)
+    __u64 window_start;
+    __u64 dropped_total; // cumulative dropped packets (never resets)
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct global_syn_stats);
+} global_syn SEC(".maps");
+
+
 // =================== CHECKSUM HELPERS ========================
 
 static __always_inline __u16 csum_fold(__u32 sum) {
@@ -349,7 +366,7 @@ static __always_inline __u32 hash_key_consistent(__u32 key, __u32 seed) {
 
 static __always_inline __s32 consistent_hash_lookup(__u32 key_hash, bool use_prev) {
     __u32 config_key = 0;
-    __u32* hashring_size = bpf_map_lookup_elem(&ch_config, &config_key);
+    __u32* hashring_size = (__u32*)bpf_map_lookup_elem(&ch_config, &config_key);
     if (!hashring_size || *hashring_size == 0)
         return -1;
     
@@ -357,19 +374,19 @@ static __always_inline __s32 consistent_hash_lookup(__u32 key_hash, bool use_pre
     __s32* backend_idx;
     
     if (use_prev)
-        backend_idx = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+        backend_idx = (__s32*)bpf_map_lookup_elem(&ch_prev_lookup, &index);
     else
-        backend_idx = bpf_map_lookup_elem(&ch_curr_lookup, &index);
+        backend_idx = (__s32*)bpf_map_lookup_elem(&ch_curr_lookup, &index);
     
     if (!backend_idx || *backend_idx < 0)
         return -1;
     
     __u32 stats_key = 0;
-    struct ch_stats_data* stats = bpf_map_lookup_elem(&ch_stats_map, &stats_key);
+    struct ch_stats_data* stats = (struct ch_stats_data*)bpf_map_lookup_elem(&ch_stats_map, &stats_key);
     if (stats) {
         stats->total_lookups++;
         if (!use_prev) {
-            __s32* prev_idx = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+            __s32* prev_idx = (__s32*)bpf_map_lookup_elem(&ch_prev_lookup, &index);
             if (prev_idx && *prev_idx == *backend_idx)
                 stats->stable_lookups++;
             else
@@ -382,13 +399,13 @@ static __always_inline __s32 consistent_hash_lookup(__u32 key_hash, bool use_pre
 
 static __always_inline bool consistent_hash_is_stable(__u32 key_hash) {
     __u32 config_key = 0;
-    __u32* hashring_size = bpf_map_lookup_elem(&ch_config, &config_key);
+    __u32* hashring_size = (__u32*)bpf_map_lookup_elem(&ch_config, &config_key);
     if (!hashring_size || *hashring_size == 0)
         return true;
     
     __u32 index = key_hash % *hashring_size;
-    __s32* curr = bpf_map_lookup_elem(&ch_curr_lookup, &index);
-    __s32* prev = bpf_map_lookup_elem(&ch_prev_lookup, &index);
+    __s32* curr = (__s32*)bpf_map_lookup_elem(&ch_curr_lookup, &index);
+    __s32* prev = (__s32*)bpf_map_lookup_elem(&ch_prev_lookup, &index);
     
     if (!curr || !prev)
         return true;
@@ -404,18 +421,18 @@ static __always_inline struct backend *ch_balancer_handle(
 {
     __s32 backend_idx = consistent_hash_lookup(key_hash, false);
     if (backend_idx < 0)
-        return NULL;
+        return (struct backend *)0;
     
     __u32 bid = (__u32)backend_idx;
-    struct backend *backend = bpf_map_lookup_elem(&ch_backends, &bid);
+    struct backend *backend = (struct backend *)bpf_map_lookup_elem(&ch_backends, &bid);
     if (!backend || !backend->active)
-        return NULL;
+        return (struct backend *)0;
     
     if (last_index)
         *last_index = bid;
     
     struct summary_packets_data *pkts_stats = 
-        bpf_map_lookup_elem(&backends_packets_stats, &bid);
+        (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &bid);
     if(pkts_stats) {
         pkts_stats->total_packets++;
         pkts_stats->prepared_packets++;
@@ -423,7 +440,7 @@ static __always_inline struct backend *ch_balancer_handle(
     }
     
     struct summary_packets_data *service_pkts_stats = 
-        bpf_map_lookup_elem(&services_packets_stats, key);
+        (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
     if(service_pkts_stats) {
         service_pkts_stats->total_packets++;
         service_pkts_stats->prepared_packets++;
@@ -506,8 +523,7 @@ static __always_inline struct backend *wrr_balancer_handle(void *current_back_ma
 static __always_inline struct backend *find_tcp_backend(struct session_state_key *state_key,
                                                         struct service_key *key,
                                                         struct tcphdr *tcp,
-                                                        __u32 packet_len,
-                                                        __u32 *out_backend_idx)
+                                                        __u32 packet_len)
 {
     __u32 last_backend_index = 0;
     struct session_state_val *state_backend = (struct session_state_val *)0;
@@ -722,50 +738,12 @@ static __always_inline __u8 tcp_balancer_handle_v4(struct ethhdr *l2_header,
     if(!backend)
         return 3;
 
-    // Get balancer's own IP for full NAT
-    __u32 cfg_key = 0;
-    struct lb_config_val *cfg = bpf_map_lookup_elem(&lb_config, &cfg_key);
-    if (!cfg || cfg->ipv4 == 0)
-        return 3;
-
-    __u32 old_saddr = ip_header->saddr;
-    __u32 old_daddr = ip_header->daddr;
-    __u16 old_dport = tcp_header->dest;
-
-    __u8 client_mac[6];
-    __builtin_memcpy(client_mac, l2_header->h_source, 6);
-
+    /* L2 DSR: only rewrite dst_MAC → backend MAC; all IP/TCP headers stay unchanged.
+     * Backend must have VIP on lo and must not ARP-respond for VIP on eth0. */
     __u8 my_mac[6];
     __builtin_memcpy(my_mac, l2_header->h_dest, 6);
-
     __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
     __builtin_memcpy(l2_header->h_source, my_mac, 6);
-
-    ip_header->saddr = cfg->ipv4;       // src: client → balancer
-    ip_header->daddr = backend->ipv4;   // dst: VIP → backend
-    tcp_header->dest = bpf_htons(backend->port);
-
-    ip_header->check = 0;
-    ip_header->check = ip_checksum(ip_header);
-    tcp_header->check = csum_replace32(tcp_header->check, old_saddr, ip_header->saddr);
-    tcp_header->check = csum_replace32(tcp_header->check, old_daddr, ip_header->daddr);
-    tcp_header->check = csum_replace16(tcp_header->check, old_dport, tcp_header->dest);
-
-    struct reverse_nat_key rkey;
-    __builtin_memset(&rkey, 0, sizeof(rkey));
-    rkey.src_ip   = backend->ipv4;          // backend replies from this
-    rkey.dst_ip   = cfg->ipv4;              // to balancer (our IP)
-    rkey.src_port = bpf_htons(backend->port); // from backend port
-    rkey.dst_port = tcp_header->source;     // to client's ephemeral port (unchanged)
-
-    struct reverse_nat_val rval;
-    __builtin_memset(&rval, 0, sizeof(rval));
-    rval.client_ip = old_saddr;             // restore dst to original client
-    rval.vip       = old_daddr;             // restore src to VIP
-    rval.vip_port  = old_dport;             // restore sport to VIP port
-    __builtin_memcpy(rval.client_mac, client_mac, 6);
-
-    bpf_map_update_elem(&reverse_nat, &rkey, &rval, BPF_ANY);
 
     return 0;
 }
@@ -790,51 +768,11 @@ static __always_inline int udp_balancer_handle_v4(struct ethhdr *l2_header,
     if(!backend)
         return 3;
 
-    __u32 cfg_key = 0;
-    struct lb_config_val *cfg = bpf_map_lookup_elem(&lb_config, &cfg_key);
-    if (!cfg || cfg->ipv4 == 0)
-        return 3;
-
-    __u32 old_saddr = ip_header->saddr;
-    __u32 old_daddr = ip_header->daddr;
-    __u16 old_dport = udp_header->dest;
-
-    __u8 client_mac[6];
-    __builtin_memcpy(client_mac, l2_header->h_source, 6);
+    /* L2 DSR: only rewrite dst_MAC → backend MAC. */
     __u8 my_mac[6];
     __builtin_memcpy(my_mac, l2_header->h_dest, 6);
-
     __builtin_memcpy(l2_header->h_dest, backend->mac, 6);
     __builtin_memcpy(l2_header->h_source, my_mac, 6);
-
-    ip_header->saddr = cfg->ipv4;
-    ip_header->daddr = backend->ipv4;
-    udp_header->dest = bpf_htons(backend->port);
-
-    ip_header->check = 0;
-    ip_header->check = ip_checksum(ip_header);
-    if (udp_header->check != 0) {
-        udp_header->check = csum_replace32(udp_header->check, old_saddr, ip_header->saddr);
-        udp_header->check = csum_replace32(udp_header->check, old_daddr, ip_header->daddr);
-        udp_header->check = csum_replace16(udp_header->check, old_dport, udp_header->dest);
-        if (udp_header->check == 0) udp_header->check = 0xFFFF;
-    }
-
-    struct reverse_nat_key rkey;
-    __builtin_memset(&rkey, 0, sizeof(rkey));
-    rkey.src_ip   = backend->ipv4;
-    rkey.dst_ip   = cfg->ipv4;
-    rkey.src_port = bpf_htons(backend->port);
-    rkey.dst_port = udp_header->source;
-
-    struct reverse_nat_val rval;
-    __builtin_memset(&rval, 0, sizeof(rval));
-    rval.client_ip = old_saddr;
-    rval.vip       = old_daddr;
-    rval.vip_port  = old_dport;
-    __builtin_memcpy(rval.client_mac, client_mac, 6);
-
-    bpf_map_update_elem(&reverse_nat, &rkey, &rval, BPF_ANY);
 
     return 0;
 }
@@ -916,6 +854,107 @@ static __always_inline int udp_balancer_handle_v6(struct ethhdr *l2_header,
     return 0;
 }
 
+// ===================== DDoS Protection Functions =========================
+static __always_inline int ddos_check_v4(struct iphdr *ip, struct tcphdr *tcp)
+{
+    __u32 src_ip = ip->saddr;
+    __u64 now = bpf_ktime_get_ns();
+
+    __u32 cfg_key = 0;
+    struct ddos_config *cfg = (struct ddos_config *)bpf_map_lookup_elem(&ddos_cfg, &cfg_key);
+    __u64 *ban_time = (__u64*)bpf_map_lookup_elem(&blacklist, &src_ip);
+    
+    if (ban_time) {
+        __u64 duration = cfg ? cfg->ban_duration_ns : 300000000000ULL;
+        if (now - *ban_time < duration) {
+            return XDP_DROP;
+        }
+        bpf_map_delete_elem(&blacklist, &src_ip);
+    }
+
+    struct syn_counter *cnt = (struct syn_counter *)bpf_map_lookup_elem(&syn_tracker, &src_ip);
+    if (!cnt) {
+        struct syn_counter new_cnt = {
+            .syn_count = 0,
+            .ack_count = 0,
+            .window_start = now,
+            .total_packets = 0
+        };
+        bpf_map_update_elem(&syn_tracker, &src_ip, &new_cnt, BPF_ANY);
+        cnt = (struct syn_counter *)bpf_map_lookup_elem(&syn_tracker, &src_ip);
+        if (!cnt)
+            return XDP_PASS;
+    }
+
+    if (now - cnt->window_start > DDOS_WINDOW_NS) {
+        cnt->syn_count = 0;
+        cnt->ack_count = 0;
+        cnt->total_packets = 0;
+        cnt->window_start = now;
+    }
+
+    cnt->total_packets++;
+
+    if (tcp->syn && !tcp->ack) { // pure TCP SYN
+        cnt->syn_count++;
+
+        __u32 gkey = 0;
+        struct global_syn_stats *gs = (struct global_syn_stats *)bpf_map_lookup_elem(&global_syn, &gkey);
+        if (gs) {
+            if (now - gs->window_start > DDOS_WINDOW_NS) {
+                gs->syn_count = 0;
+                gs->window_start = now;
+            }
+            gs->syn_count++;
+
+            // global SYN flood: drop immediately without per-IP ban
+            if (cfg && cfg->global_syn_threshold > 0 &&
+                gs->syn_count > cfg->global_syn_threshold) {
+                gs->dropped_total++;
+                return XDP_DROP;
+            }
+        }
+    }
+
+    if (tcp->ack && !tcp->syn) {
+        cnt->ack_count++;
+    }
+
+    if (!cfg)
+        return XDP_PASS; // empty config == bypass
+
+    if (cfg->syn_threshold > 0 && cnt->syn_count > cfg->syn_threshold) {
+        bpf_printk("xdp/ddos: BLOCKED ip=%x syn=%llu > threshold=%u",
+                   bpf_ntohl(src_ip), cnt->syn_count, cfg->syn_threshold);
+        __u64 ban_ts = now;
+        bpf_map_update_elem(&blacklist, &src_ip, &ban_ts, BPF_ANY);
+        __u32 gkey = 0;
+        struct global_syn_stats *gs_drop = (struct global_syn_stats *)bpf_map_lookup_elem(&global_syn, &gkey);
+        if (gs_drop)
+            gs_drop->dropped_total++;
+        return XDP_DROP;
+    }
+
+    if (cfg->syn_ack_ratio > 0 && cnt->syn_count > 10) {
+        // syn_ack_ratio = 500 ==  5 SYN on 1 ACK
+        __u64 ack = cnt->ack_count > 0 ? cnt->ack_count : 1;
+        __u64 ratio = (cnt->syn_count * 100) / ack;
+        if (ratio > cfg->syn_ack_ratio) {
+            bpf_printk("xdp/ddos: BLOCKED ip=%x syn/ack ratio=%llu > %u",
+                       bpf_ntohl(src_ip), ratio, cfg->syn_ack_ratio);
+            __u64 ban_ts = now;
+            bpf_map_update_elem(&blacklist, &src_ip, &ban_ts, BPF_ANY);
+            __u32 gkey = 0;
+            struct global_syn_stats *gs_drop = (struct global_syn_stats *)bpf_map_lookup_elem(&global_syn, &gkey);
+            if (gs_drop)
+                gs_drop->dropped_total++;
+            return XDP_DROP;
+        }
+    }
+
+    return XDP_PASS;
+}
+
 
 SEC("xdp")
 int balancer_handler(struct xdp_md *ctx)
@@ -928,7 +967,7 @@ int balancer_handler(struct xdp_md *ctx)
         return XDP_PASS;
     
     if (eth->h_proto == bpf_htons(ETH_P_IP)) {
-        struct iphdr *ip = (void *)(eth + 1);
+        struct iphdr *ip = (struct iphdr *)(eth + 1);
         if ((void *)(ip + 1) > data_end)
             return XDP_PASS;
 
@@ -946,42 +985,11 @@ int balancer_handler(struct xdp_md *ctx)
             if ((void *)(tcp + 1) > data_end)
                 return XDP_PASS;
 
-            struct reverse_nat_key rkey;
-            __builtin_memset(&rkey, 0, sizeof(rkey));
-            rkey.src_ip   = ip->saddr;    // backend IP
-            rkey.dst_ip   = ip->daddr;    // balancer IP (our IP)
-            rkey.src_port = tcp->source;  // backend port (nbo)
-            rkey.dst_port = tcp->dest;    // client ephemeral port (nbo)
+            // Check on DDoS Attack
+            int ddos_verdict = ddos_check_v4(ip, tcp);
+            if (ddos_verdict == XDP_DROP)
+                return XDP_DROP;
 
-            struct reverse_nat_val *rval = bpf_map_lookup_elem(&reverse_nat, &rkey);
-            if (rval) {
-                __u32 old_saddr = ip->saddr;
-                __u32 old_daddr = ip->daddr;
-                __u16 old_sport = tcp->source;
-
-                __u8 my_mac[6];
-                __builtin_memcpy(my_mac, eth->h_dest, 6);
-                __builtin_memcpy(eth->h_dest, rval->client_mac, 6);
-                __builtin_memcpy(eth->h_source, my_mac, 6);
-
-                ip->saddr   = rval->vip;
-                ip->daddr   = rval->client_ip;
-                tcp->source = rval->vip_port;
-
-                ip->check = 0;
-                ip->check = ip_checksum(ip);
-                tcp->check = csum_replace32(tcp->check, old_saddr, ip->saddr);
-                tcp->check = csum_replace32(tcp->check, old_daddr, ip->daddr);
-                tcp->check = csum_replace16(tcp->check, old_sport, tcp->source);
-
-                if (tcp->fin || tcp->rst)
-                    bpf_map_delete_elem(&reverse_nat, &rkey);
-
-                // Send back to client via the tap it came from originally
-                // XDP_TX sends it back out the interface it arrived on (virbr0)
-                // Bridge will forward by dst MAC to the correct tap
-                return XDP_TX;
-            }
 
             __u8 result = tcp_balancer_handle_v4(eth, ip, tcp, data_end);
             if(result > 0)
@@ -992,40 +1000,6 @@ int balancer_handler(struct xdp_md *ctx)
             struct udphdr *udp = (struct udphdr *)transport_header;
             if ((void *)(udp + 1) > data_end)
                 return XDP_PASS;
-
-            struct reverse_nat_key rkey_u;
-            __builtin_memset(&rkey_u, 0, sizeof(rkey_u));
-            rkey_u.src_ip   = ip->saddr;
-            rkey_u.dst_ip   = ip->daddr;
-            rkey_u.src_port = udp->source;
-            rkey_u.dst_port = udp->dest;
-
-            struct reverse_nat_val *rval_u = bpf_map_lookup_elem(&reverse_nat, &rkey_u);
-            if (rval_u) {
-                __u32 old_saddr = ip->saddr;
-                __u32 old_daddr = ip->daddr;
-                __u16 old_sport = udp->source;
-
-                __u8 my_mac[6];
-                __builtin_memcpy(my_mac, eth->h_dest, 6);
-                __builtin_memcpy(eth->h_dest, rval_u->client_mac, 6);
-                __builtin_memcpy(eth->h_source, my_mac, 6);
-
-                ip->saddr   = rval_u->vip;
-                ip->daddr   = rval_u->client_ip;
-                udp->source = rval_u->vip_port;
-
-                ip->check = 0;
-                ip->check = ip_checksum(ip);
-                if (udp->check != 0) {
-                    udp->check = csum_replace32(udp->check, old_saddr, ip->saddr);
-                    udp->check = csum_replace32(udp->check, old_daddr, ip->daddr);
-                    udp->check = csum_replace16(udp->check, old_sport, udp->source);
-                    if (udp->check == 0) udp->check = 0xFFFF;
-                }
-
-                return XDP_TX;
-            }
 
             __u8 result = udp_balancer_handle_v4(eth, ip, udp, data_end);
             if(result > 0)

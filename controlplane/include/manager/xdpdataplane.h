@@ -61,14 +61,19 @@ class XdpDataplane : public IDataplane, public blncr::metrics::IMetricsProvider 
     bpf_map *m_chConfigMap = nullptr;
     int m_chConfigMapFd{};
 
-    bpf_map *m_lbConfigMap = nullptr;
-    int m_lbConfigMapFd{};
+
+    bpf_map *m_ddosConfigMap = nullptr;
+    int m_ddosConfigMapFd{};
+
+    bpf_map *m_blacklistMap = nullptr;
+    int m_blacklistMapFd{};
+
+    bpf_map *m_globalSynMap = nullptr;
+    int m_globalSynMapFd{};
+
+
     algorithm::ConsistentHashManager m_chManager;
- 
- 
-
-
-    std::string m_progName;
+    std::string m_progName{};
     std::string m_progInterface;
     int m_interfaceIdx{};
     uint32_t m_xdpFlags{};
@@ -89,9 +94,13 @@ public:
 
     std::map<metrics::BackendInfo, metrics::MetricsData> GetBackendsCurrentMetrics() override;
     std::map<metrics::ServiceInfo, metrics::MetricsData> GetServicesCurrentMetrics() override;
+    metrics::DdosStats GetDdosStats() override;
 
     std::map<xdp::Backend, xdp::PacketsData> GetBackendsMetrics() const;
     std::map<xdp::ServiceKey, xdp::PacketsData> GetServicesMetrics() const;
+
+    std::map<std::string, unsigned long> GetBlackList() const override;
+    xdp::GlobalSynStats GetGlobalSynStats() const;
 
     void StopProgram();
 

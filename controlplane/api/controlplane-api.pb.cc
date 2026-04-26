@@ -289,8 +289,35 @@ struct EmptyMessageDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 EmptyMessageDefaultTypeInternal _EmptyMessage_default_instance_;
+PROTOBUF_CONSTEXPR BlackListInfo::BlackListInfo(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.ip_address_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
+  , /*decltype(_impl_.timestamp_)*/uint64_t{0u}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct BlackListInfoDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR BlackListInfoDefaultTypeInternal()
+      : _instance(::_pbi::ConstantInitialized{}) {}
+  ~BlackListInfoDefaultTypeInternal() {}
+  union {
+    BlackListInfo _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 BlackListInfoDefaultTypeInternal _BlackListInfo_default_instance_;
+PROTOBUF_CONSTEXPR GetBlackListResponse::GetBlackListResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.list_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct GetBlackListResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GetBlackListResponseDefaultTypeInternal()
+      : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GetBlackListResponseDefaultTypeInternal() {}
+  union {
+    GetBlackListResponse _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GetBlackListResponseDefaultTypeInternal _GetBlackListResponse_default_instance_;
 }  // namespace api
-static ::_pb::Metadata file_level_metadata_api_2fcontrolplane_2dapi_2eproto[18];
+static ::_pb::Metadata file_level_metadata_api_2fcontrolplane_2dapi_2eproto[20];
 static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_api_2fcontrolplane_2dapi_2eproto = nullptr;
 static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_api_2fcontrolplane_2dapi_2eproto = nullptr;
 
@@ -469,6 +496,21 @@ const uint32_t TableStruct_api_2fcontrolplane_2dapi_2eproto::offsets[] PROTOBUF_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::api::BlackListInfo, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::api::BlackListInfo, _impl_.ip_address_),
+  PROTOBUF_FIELD_OFFSET(::api::BlackListInfo, _impl_.timestamp_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::api::GetBlackListResponse, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::api::GetBlackListResponse, _impl_.list_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::api::GetConfigRequest)},
@@ -489,6 +531,8 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 150, -1, -1, sizeof(::api::ListBackendsResponse)},
   { 157, -1, -1, sizeof(::api::ServiceMetrics)},
   { 168, -1, -1, sizeof(::api::EmptyMessage)},
+  { 174, -1, -1, sizeof(::api::BlackListInfo)},
+  { 182, -1, -1, sizeof(::api::GetBlackListResponse)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -510,6 +554,8 @@ static const ::_pb::Message* const file_default_instances[] = {
   &::api::_ListBackendsResponse_default_instance_._instance,
   &::api::_ServiceMetrics_default_instance_._instance,
   &::api::_EmptyMessage_default_instance_._instance,
+  &::api::_BlackListInfo_default_instance_._instance,
+  &::api::_GetBlackListResponse_default_instance_._instance,
 };
 
 const char descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -552,25 +598,29 @@ const char descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto[] PROTOBUF
   "l_packets\030\001 \001(\004\022\027\n\017tcp_syn_packets\030\002 \001(\004"
   "\022\030\n\020prepared_packets\030\003 \001(\004\022\032\n\022active_con"
   "nections\030\004 \001(\r\022\023\n\013total_bytes\030\005 \001(\004\"\016\n\014E"
-  "mptyMessage2\231\003\n\rL4BalancerApi\022:\n\tGetConf"
-  "ig\022\025.api.GetConfigRequest\032\026.api.GetConfi"
-  "gResponse\022C\n\014UpdateConfig\022\030.api.UpdateCo"
-  "nfigRequest\032\031.api.UpdateConfigResponse\022C"
-  "\n\014ListServices\022\030.api.ListServicesRequest"
-  "\032\031.api.ListServicesResponse\022C\n\014ListBacke"
-  "nds\022\030.api.ListBackendsRequest\032\031.api.List"
-  "BackendsResponse\022O\n\020SetBackendStatus\022\034.a"
-  "pi.SetBackendStatusRequest\032\035.api.SetBack"
-  "endStatusResponse\022,\n\004Ping\022\021.api.EmptyMes"
-  "sage\032\021.api.EmptyMessageB2Z0github.com/Dm"
-  "itriy-M1319/l4-controlplane/api;apib\006pro"
-  "to3"
+  "mptyMessage\"6\n\rBlackListInfo\022\022\n\nip_addre"
+  "ss\030\001 \001(\t\022\021\n\ttimestamp\030\002 \001(\004\"8\n\024GetBlackL"
+  "istResponse\022 \n\004list\030\001 \003(\0132\022.api.BlackLis"
+  "tInfo2\327\003\n\rL4BalancerApi\022:\n\tGetConfig\022\025.a"
+  "pi.GetConfigRequest\032\026.api.GetConfigRespo"
+  "nse\022C\n\014UpdateConfig\022\030.api.UpdateConfigRe"
+  "quest\032\031.api.UpdateConfigResponse\022C\n\014List"
+  "Services\022\030.api.ListServicesRequest\032\031.api"
+  ".ListServicesResponse\022C\n\014ListBackends\022\030."
+  "api.ListBackendsRequest\032\031.api.ListBacken"
+  "dsResponse\022O\n\020SetBackendStatus\022\034.api.Set"
+  "BackendStatusRequest\032\035.api.SetBackendSta"
+  "tusResponse\022,\n\004Ping\022\021.api.EmptyMessage\032\021"
+  ".api.EmptyMessage\022<\n\014GetBlackList\022\021.api."
+  "EmptyMessage\032\031.api.GetBlackListResponseB"
+  "2Z0github.com/Dmitriy-M1319/l4-controlpl"
+  "ane/api;apib\006proto3"
   ;
 static ::_pbi::once_flag descriptor_table_api_2fcontrolplane_2dapi_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_api_2fcontrolplane_2dapi_2eproto = {
-    false, false, 2043, descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto,
+    false, false, 2219, descriptor_table_protodef_api_2fcontrolplane_2dapi_2eproto,
     "api/controlplane-api.proto",
-    &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once, nullptr, 0, 18,
+    &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once, nullptr, 0, 20,
     schemas, file_default_instances, TableStruct_api_2fcontrolplane_2dapi_2eproto::offsets,
     file_level_metadata_api_2fcontrolplane_2dapi_2eproto, file_level_enum_descriptors_api_2fcontrolplane_2dapi_2eproto,
     file_level_service_descriptors_api_2fcontrolplane_2dapi_2eproto,
@@ -4965,6 +5015,421 @@ const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*EmptyMessage::GetClassData() c
       file_level_metadata_api_2fcontrolplane_2dapi_2eproto[17]);
 }
 
+// ===================================================================
+
+class BlackListInfo::_Internal {
+ public:
+};
+
+BlackListInfo::BlackListInfo(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
+  SharedCtor(arena, is_message_owned);
+  // @@protoc_insertion_point(arena_constructor:api.BlackListInfo)
+}
+BlackListInfo::BlackListInfo(const BlackListInfo& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  BlackListInfo* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.ip_address_){}
+    , decltype(_impl_.timestamp_){}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.ip_address_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.ip_address_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_ip_address().empty()) {
+    _this->_impl_.ip_address_.Set(from._internal_ip_address(), 
+      _this->GetArenaForAllocation());
+  }
+  _this->_impl_.timestamp_ = from._impl_.timestamp_;
+  // @@protoc_insertion_point(copy_constructor:api.BlackListInfo)
+}
+
+inline void BlackListInfo::SharedCtor(
+    ::_pb::Arena* arena, bool is_message_owned) {
+  (void)arena;
+  (void)is_message_owned;
+  new (&_impl_) Impl_{
+      decltype(_impl_.ip_address_){}
+    , decltype(_impl_.timestamp_){uint64_t{0u}}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.ip_address_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.ip_address_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+BlackListInfo::~BlackListInfo() {
+  // @@protoc_insertion_point(destructor:api.BlackListInfo)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void BlackListInfo::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.ip_address_.Destroy();
+}
+
+void BlackListInfo::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void BlackListInfo::Clear() {
+// @@protoc_insertion_point(message_clear_start:api.BlackListInfo)
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.ip_address_.ClearToEmpty();
+  _impl_.timestamp_ = uint64_t{0u};
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* BlackListInfo::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string ip_address = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+          auto str = _internal_mutable_ip_address();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "api.BlackListInfo.ip_address"));
+        } else
+          goto handle_unusual;
+        continue;
+      // uint64 timestamp = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
+          _impl_.timestamp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+uint8_t* BlackListInfo::_InternalSerialize(
+    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:api.BlackListInfo)
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string ip_address = 1;
+  if (!this->_internal_ip_address().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_ip_address().data(), static_cast<int>(this->_internal_ip_address().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "api.BlackListInfo.ip_address");
+    target = stream->WriteStringMaybeAliased(
+        1, this->_internal_ip_address(), target);
+  }
+
+  // uint64 timestamp = 2;
+  if (this->_internal_timestamp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(2, this->_internal_timestamp(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:api.BlackListInfo)
+  return target;
+}
+
+size_t BlackListInfo::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:api.BlackListInfo)
+  size_t total_size = 0;
+
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string ip_address = 1;
+  if (!this->_internal_ip_address().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_ip_address());
+  }
+
+  // uint64 timestamp = 2;
+  if (this->_internal_timestamp() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_timestamp());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData BlackListInfo::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    BlackListInfo::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*BlackListInfo::GetClassData() const { return &_class_data_; }
+
+
+void BlackListInfo::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<BlackListInfo*>(&to_msg);
+  auto& from = static_cast<const BlackListInfo&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:api.BlackListInfo)
+  GOOGLE_DCHECK_NE(&from, _this);
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_ip_address().empty()) {
+    _this->_internal_set_ip_address(from._internal_ip_address());
+  }
+  if (from._internal_timestamp() != 0) {
+    _this->_internal_set_timestamp(from._internal_timestamp());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void BlackListInfo::CopyFrom(const BlackListInfo& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:api.BlackListInfo)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool BlackListInfo::IsInitialized() const {
+  return true;
+}
+
+void BlackListInfo::InternalSwap(BlackListInfo* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &_impl_.ip_address_, lhs_arena,
+      &other->_impl_.ip_address_, rhs_arena
+  );
+  swap(_impl_.timestamp_, other->_impl_.timestamp_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata BlackListInfo::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_api_2fcontrolplane_2dapi_2eproto_getter, &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once,
+      file_level_metadata_api_2fcontrolplane_2dapi_2eproto[18]);
+}
+
+// ===================================================================
+
+class GetBlackListResponse::_Internal {
+ public:
+};
+
+GetBlackListResponse::GetBlackListResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
+  SharedCtor(arena, is_message_owned);
+  // @@protoc_insertion_point(arena_constructor:api.GetBlackListResponse)
+}
+GetBlackListResponse::GetBlackListResponse(const GetBlackListResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  GetBlackListResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.list_){from._impl_.list_}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:api.GetBlackListResponse)
+}
+
+inline void GetBlackListResponse::SharedCtor(
+    ::_pb::Arena* arena, bool is_message_owned) {
+  (void)arena;
+  (void)is_message_owned;
+  new (&_impl_) Impl_{
+      decltype(_impl_.list_){arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+GetBlackListResponse::~GetBlackListResponse() {
+  // @@protoc_insertion_point(destructor:api.GetBlackListResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void GetBlackListResponse::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.list_.~RepeatedPtrField();
+}
+
+void GetBlackListResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void GetBlackListResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:api.GetBlackListResponse)
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.list_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* GetBlackListResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // repeated .api.BlackListInfo list = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_list(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+uint8_t* GetBlackListResponse::_InternalSerialize(
+    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:api.GetBlackListResponse)
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // repeated .api.BlackListInfo list = 1;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_list_size()); i < n; i++) {
+    const auto& repfield = this->_internal_list(i);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:api.GetBlackListResponse)
+  return target;
+}
+
+size_t GetBlackListResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:api.GetBlackListResponse)
+  size_t total_size = 0;
+
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated .api.BlackListInfo list = 1;
+  total_size += 1UL * this->_internal_list_size();
+  for (const auto& msg : this->_impl_.list_) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData GetBlackListResponse::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    GetBlackListResponse::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetBlackListResponse::GetClassData() const { return &_class_data_; }
+
+
+void GetBlackListResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<GetBlackListResponse*>(&to_msg);
+  auto& from = static_cast<const GetBlackListResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:api.GetBlackListResponse)
+  GOOGLE_DCHECK_NE(&from, _this);
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.list_.MergeFrom(from._impl_.list_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void GetBlackListResponse::CopyFrom(const GetBlackListResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:api.GetBlackListResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool GetBlackListResponse::IsInitialized() const {
+  return true;
+}
+
+void GetBlackListResponse::InternalSwap(GetBlackListResponse* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.list_.InternalSwap(&other->_impl_.list_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata GetBlackListResponse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_api_2fcontrolplane_2dapi_2eproto_getter, &descriptor_table_api_2fcontrolplane_2dapi_2eproto_once,
+      file_level_metadata_api_2fcontrolplane_2dapi_2eproto[19]);
+}
+
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace api
 PROTOBUF_NAMESPACE_OPEN
@@ -5039,6 +5504,14 @@ Arena::CreateMaybeMessage< ::api::ServiceMetrics >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::api::EmptyMessage*
 Arena::CreateMaybeMessage< ::api::EmptyMessage >(Arena* arena) {
   return Arena::CreateMessageInternal< ::api::EmptyMessage >(arena);
+}
+template<> PROTOBUF_NOINLINE ::api::BlackListInfo*
+Arena::CreateMaybeMessage< ::api::BlackListInfo >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::api::BlackListInfo >(arena);
+}
+template<> PROTOBUF_NOINLINE ::api::GetBlackListResponse*
+Arena::CreateMaybeMessage< ::api::GetBlackListResponse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::api::GetBlackListResponse >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

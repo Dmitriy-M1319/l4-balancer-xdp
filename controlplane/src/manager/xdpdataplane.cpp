@@ -260,15 +260,38 @@ std::optional<std::string> manager::XdpDataplane::RunProgram(const std::string& 
 		m_chConfigMapFd = bpf_map__fd(m_chConfigMap);
 	}
 
-	auto lbConfig = openBpfMap("lb_config");
-	if (std::get_if<std::string>(&lbConfig))
+	auto ddosConfig = openBpfMap("ddos_cfg");
+	if (std::get_if<std::string>(&ddosConfig))
 	{
-		return std::get<std::string>(lbConfig);
+		return std::get<std::string>(ddosConfig);
 	}
 	else
 	{
-		m_lbConfigMap = std::get<bpf_map*>(lbConfig);
-		m_lbConfigMapFd = bpf_map__fd(m_lbConfigMap);
+		m_ddosConfigMap = std::get<bpf_map*>(ddosConfig);
+		m_ddosConfigMapFd = bpf_map__fd(m_ddosConfigMap);
+	}
+
+
+	auto blacklist = openBpfMap("blacklist");
+	if (std::get_if<std::string>(&blacklist))
+	{
+		return std::get<std::string>(blacklist);
+	}
+	else
+	{
+		m_blacklistMap = std::get<bpf_map*>(blacklist);
+		m_blacklistMapFd = bpf_map__fd(m_blacklistMap);
+	}
+
+	auto globalSyn = openBpfMap("global_syn");
+	if (std::get_if<std::string>(&globalSyn))
+	{
+		return std::get<std::string>(globalSyn);
+	}
+	else
+	{
+		m_globalSynMap = std::get<bpf_map*>(globalSyn);
+		m_globalSynMapFd = bpf_map__fd(m_globalSynMap);
 	}
 
 	m_chManager.setBpfUpdateCallback(
@@ -311,19 +334,6 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 	if (isValidBpfState())
 	{
 		m_currConfig = config;
-		struct
-		{
-			uint32_t ipv4;
-			uint8_t mac[6];
-			uint8_t _pad[2];
-		} lb_cfg = {};
-
-		// TODO: Remove hardcore
-		lb_cfg.ipv4 = inet_addr("192.168.122.1"); // IP virbr0
-		uint8_t virbr0_mac[6] = {0x52, 0x54, 0x00, 0xbe, 0xc2, 0x5f};
-		memcpy(lb_cfg.mac, virbr0_mac, 6);
-		__u32 zero = 0;
-		bpf_map_update_elem(m_lbConfigMapFd, &zero, &lb_cfg, BPF_ANY);
 
 		int currentBackendIdx = 0;
 		m_xdpBackends.clear();
@@ -444,6 +454,19 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 			          << " start_idx=" << currentBackendIdx << '\n';
 			m_xdpServices.push_back(std::move(info));
 			currentBackendIdx += count;
+		}
+
+		if(config.ddosConf.has_value()) {
+			xdp::DDoSConfiguration conf{.syn_threshold = config.ddosConf->syn_threshold, 
+										.syn_ack_ratio = config.ddosConf->syn_ack_ratio,
+										.global_syn_threshold = config.ddosConf->global_syn_threshold,
+										.ban_duration_ns = config.ddosConf->ban_duration_ms * 1'000'000
+			};
+
+			__u32 key = 0;
+			if(bpf_map_update_elem(m_ddosConfigMapFd, &key, &conf, BPF_ANY) != 0) {
+				return std::format("failed to update DDoS watching configuration: {}", strerror(errno));
+			}
 		}
 
 		uint8_t currentIndex{};
@@ -766,6 +789,60 @@ std::map<metrics::ServiceInfo, metrics::MetricsData> manager::XdpDataplane::GetS
 	}
 
 	return result;
+}
+
+std::map<std::string, unsigned long> manager::XdpDataplane::GetBlackList() const
+{
+	std::map<std::string, unsigned long> result;
+
+	__u32 ip_key{};
+	while (bpf_map_get_next_key(m_blacklistMapFd, nullptr, &ip_key) == 0)
+	{
+		//bpf_map_delete_elem(m_sessionStateMapFd, &sess_key);
+		__u64 timestamp{};
+		if(bpf_map_lookup_elem(m_blacklistMapFd, &ip_key, &timestamp) == 0)
+		{
+			char buf[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &ip_key, buf, sizeof(buf));
+			std::string strIp(buf);
+			result[strIp] = static_cast<unsigned long>(timestamp);
+		}
+	}
+
+	return result;
+}
+
+manager::xdp::GlobalSynStats manager::XdpDataplane::GetGlobalSynStats() const
+{
+	xdp::GlobalSynStats stats{};
+	__u32 key = 0;
+	bpf_map_lookup_elem(m_globalSynMapFd, &key, &stats);
+	return stats;
+}
+
+metrics::DdosStats manager::XdpDataplane::GetDdosStats()
+{
+	auto syn = GetGlobalSynStats();
+
+	uint64_t blacklist_size = 0;
+	__u32 ip_key{};
+	__u32 prev_key{};
+	bool first = true;
+	while (true)
+	{
+		int ret = first
+		        ? bpf_map_get_next_key(m_blacklistMapFd, nullptr, &ip_key)
+		        : bpf_map_get_next_key(m_blacklistMapFd, &prev_key, &ip_key);
+		if (ret != 0)
+			break;
+		blacklist_size++;
+		prev_key = ip_key;
+		first = false;
+	}
+
+	return metrics::DdosStats{
+	        .dropped_total = syn.dropped_total,
+	        .blacklist_size = blacklist_size};
 }
 
 bool manager::XdpDataplane::updateChBpfMaps(

@@ -1,4 +1,5 @@
 #include "grpc_server.h"
+#include "api/controlplane-api.pb.h"
 #include "grpc_mappers.h"
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
@@ -151,6 +152,25 @@ grpc::Status ControlplaneApiServerImpl::SetBackendStatus(grpc::ServerContext *ct
             response->set_error(err.value());
         } else {
             response->set_success(true);
+        }
+ 
+        return grpc::Status::OK;
+    } catch (const std::exception& e) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+    }
+}
+
+grpc::Status ControlplaneApiServerImpl::GetBlackList(grpc::ServerContext*, const api::EmptyMessage*, api::GetBlackListResponse* response) {
+    try {
+        auto blackList = m_cpManager->GetBlackList();
+ 
+        for (const auto&[ip, timestamp] : blackList) {
+            auto *info = response->add_list();
+
+            api::BlackListInfo data;
+            data.set_ip_address(ip);
+            data.set_timestamp(timestamp);
+           *info = std::move(data);
         }
  
         return grpc::Status::OK;
