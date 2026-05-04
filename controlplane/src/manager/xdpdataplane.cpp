@@ -452,6 +452,7 @@ std::optional<std::string> manager::XdpDataplane::ReloadConfig(const config::Bas
 			std::cout << "[xdp]   service info: algo=" << info.algorithm
 			          << " backend_count=" << count
 			          << " start_idx=" << currentBackendIdx << '\n';
+			info.service_idx = static_cast<__u32>(m_xdpServices.size());
 			m_xdpServices.push_back(std::move(info));
 			currentBackendIdx += count;
 		}
@@ -717,10 +718,10 @@ std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDatapl
 
 	std::vector<xdp::PacketsData> percpu_stats(m_cpusNumber);
 
-	for (const auto& key : m_xdpKeys)
+	for (__u32 i = 0; i < static_cast<__u32>(m_xdpKeys.size()); ++i)
 	{
 		int ret = bpf_map_lookup_elem(m_servicesStatsMapFd,
-		                              &key,
+		                              &i,
 		                              percpu_stats.data());
 		if (ret != 0)
 		{
@@ -738,7 +739,7 @@ std::map<manager::xdp::ServiceKey, manager::xdp::PacketsData> manager::XdpDatapl
 			stats.prepared_packets += cpu_stats.prepared_packets;
 		}
 
-		results[key] = stats;
+		results[m_xdpKeys[i]] = stats;
 	}
 
 	return results;

@@ -86,10 +86,11 @@ struct ServiceKey {
 
 /// Map value: service config
 struct ServiceInfo {
-    __u32 backend_count;     
-    __u32 backend_start_idx; 
-    __u8 algorithm;         
+    __u32 backend_count;
+    __u32 backend_start_idx;
+    __u8 algorithm;
     __u8 _pad[3];               // Aligment
+    __u32 service_idx;
 };
 
 struct PacketsData {

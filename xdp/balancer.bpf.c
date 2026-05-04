@@ -29,10 +29,11 @@ struct service_key {
 
 // Service configuration
 struct service_info {
-    __u32 backend_count;     
-    __u32 backend_start_idx; 
-    __u8 algorithm;          
-    __u8 _pad[3];
+    __u32 backend_count;
+    __u32 backend_start_idx;
+    __u8  algorithm;
+    __u8  _pad[3];
+    __u32 service_idx;   // index into services_packets_stats PERCPU_ARRAY
 };
 
 struct {
@@ -174,6 +175,7 @@ struct session_state_key {
 
 struct session_state_val {
     __u32 backend_idx;
+    __u32 service_idx;   // cached for single-lookup stats update
     __u64 created;
     __u64 timeout;
 };
@@ -204,9 +206,9 @@ struct {
 } backends_packets_stats SEC(".maps");
 
 struct {
-    __uint(type, BPF_MAP_TYPE_PERCPU_HASH);
-    __uint(max_entries, 256);  
-    __type(key, struct service_key);         
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 256);
+    __type(key, __u32);
     __type(value, struct summary_packets_data);
 } services_packets_stats SEC(".maps");
 
@@ -526,64 +528,62 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
                                                         __u32 packet_len)
 {
     __u32 last_backend_index = 0;
+    __u32 service_idx_for_stats = 0;
+    __s32 conn_delta = 0;
     struct session_state_val *state_backend = (struct session_state_val *)0;
     struct backend *backend = (struct backend *)0;
     __u32 atomic_key = 0;
     __u64 *curr_index = (__u64 *)bpf_map_lookup_elem(&atomic_index, &atomic_key);
-    if(!curr_index) {
+    if (!curr_index) {
         bpf_printk("xdp: invalid index for services\n");
         return (struct backend *)0;
     }
 
-    void *services_map = 0;
-    void *backends_map = 0;
-    if(*curr_index == 0) {
-        services_map = (void *)&services_first;
-        backends_map = (void *)&backends_first;
-    } else {
-        services_map = (void *)&services_second;
-        backends_map = (void *)&backends_second;
-    }
+    void *services_map = (*curr_index == 0) ? (void *)&services_first : (void *)&services_second;
+    void *backends_map = (*curr_index == 0) ? (void *)&backends_first : (void *)&backends_second;
 
     // check firstly in session state map (not only TCP SYN)
-    if(!(tcp->syn && !tcp->ack)) {
+    if (!(tcp->syn && !tcp->ack)) {
         state_backend = (struct session_state_val *)bpf_map_lookup_elem(&tcp_session_state, state_key);
-        if(state_backend) {
+        if (state_backend) {
             __u64 now = bpf_ktime_get_ns();
             if (now - state_backend->created > state_backend->timeout) {
+                // Session timed out: connections-- for old backend/service (separate lookups,
+                // different index than the new backend that will be selected below)
                 bpf_map_delete_elem(&tcp_session_state, state_key);
-                struct summary_packets_data *pkts_stats =
+                struct summary_packets_data *p =
                     (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &state_backend->backend_idx);
-                if(pkts_stats)
-                    pkts_stats->connections--;
-                struct summary_packets_data *service_pkts_stats =
-                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
-                if(service_pkts_stats)
-                    service_pkts_stats->connections--;
+                if (p) p->connections--;
+                __u32 old_svc = state_backend->service_idx;
+                struct summary_packets_data *s =
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &old_svc);
+                if (s) s->connections--;
+                state_backend = (struct session_state_val *)0;
             } else {
                 state_backend->created = now;
                 backend = (struct backend *)bpf_map_lookup_elem(backends_map, &state_backend->backend_idx);
                 last_backend_index = state_backend->backend_idx;
+                service_idx_for_stats = state_backend->service_idx;
             }
         }
     }
 
-    if(!backend) {
+    if (!backend) {
         struct service_info *info = (struct service_info *)bpf_map_lookup_elem(services_map, key);
         __u32 attempts = 0;
-        if(info) {
+        if (info) {
             switch (info->algorithm) {
                 case BALANCER_RR:
                     do {
                         backend = rr_balancer_handle(backends_map, info, key, &last_backend_index);
                         if (++attempts > 4) { backend = (struct backend *)0; break; }
-                    } while(backend && !(backend->active));
+                    } while (backend && !(backend->active));
                     break;
                 case BALANCER_WRR:
                     do {
                         backend = wrr_balancer_handle(backends_map, info, key, &last_backend_index);
                         if (++attempts > 4) { backend = (struct backend *)0; break; }
-                    } while(backend && !(backend->active));
+                    } while (backend && !(backend->active));
                     break;
                 case BALANCER_CH:
                     {
@@ -598,59 +598,48 @@ static __always_inline struct backend *find_tcp_backend(struct session_state_key
                     return (struct backend *)0;
             }
 
-            if(!backend)
+            if (!backend)
                 return (struct backend *)0;
+
+            service_idx_for_stats = info->service_idx;
+
+            struct session_state_val new_state;
+            new_state.backend_idx = last_backend_index;
+            new_state.service_idx = info->service_idx;
+            new_state.created = bpf_ktime_get_ns();
+            new_state.timeout = TCP_STATE_TIMEOUT;
+            bpf_map_update_elem(&tcp_session_state, state_key, &new_state, BPF_ANY);
+            conn_delta = 1;
         } else {
             return (struct backend *)0;
         }
-
-        // new session
-        struct session_state_val new_state;
-        new_state.backend_idx = last_backend_index;
-        new_state.created = bpf_ktime_get_ns();
-        new_state.timeout = TCP_STATE_TIMEOUT;
-
-        struct summary_packets_data *pkts_stats = (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &last_backend_index);
-        if(pkts_stats)
-            pkts_stats->connections++;
-        struct summary_packets_data *service_pkts_stats =
-                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
-        if(service_pkts_stats)
-            service_pkts_stats->connections++;
-
-        bpf_map_update_elem(&tcp_session_state, state_key, &new_state, BPF_ANY);
     }
 
-    // FIN/RST — delete session
-    if(state_backend && (tcp->fin || tcp->rst)) {
+    // FIN/RST — mark connection closing (single delete, no extra stats lookup)
+    if (state_backend && (tcp->fin || tcp->rst)) {
         bpf_map_delete_elem(&tcp_session_state, state_key);
-        struct summary_packets_data *pkts_stats = 
-            (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &state_backend->backend_idx);
-        if(pkts_stats)
-            pkts_stats->connections--;
-        struct summary_packets_data *service_pkts_stats =
-                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
-        if(service_pkts_stats)
-            service_pkts_stats->connections--;
+        conn_delta = -1;
     }
 
-    // stats
+    // Single lookup per stats map for all updates
     struct summary_packets_data *pkts_stats =
         (struct summary_packets_data *)bpf_map_lookup_elem(&backends_packets_stats, &last_backend_index);
-    if(pkts_stats) {
+    if (pkts_stats) {
+        pkts_stats->connections += conn_delta;
         pkts_stats->total_packets++;
-        if(tcp->syn)
+        if (tcp->syn)
             pkts_stats->tcp_syn_packets++;
         pkts_stats->prepared_packets++;
         pkts_stats->total_bytes += packet_len;
     }
-    struct summary_packets_data *service_pkts_stats =
-                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
-    if(service_pkts_stats) {
-        service_pkts_stats->total_packets++;
-        if(tcp->syn)
-            service_pkts_stats->tcp_syn_packets++;
-        service_pkts_stats->prepared_packets++;
+    struct summary_packets_data *svc_stats =
+        (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &service_idx_for_stats);
+    if (svc_stats) {
+        svc_stats->connections += conn_delta;
+        svc_stats->total_packets++;
+        if (tcp->syn)
+            svc_stats->tcp_syn_packets++;
+        svc_stats->prepared_packets++;
     }
 
     return backend;
@@ -701,8 +690,9 @@ static __always_inline struct backend *find_udp_backend(struct service_key *key,
         pkts_stats->prepared_packets++;
         pkts_stats->total_bytes += packet_len;
     }
+    __u32 udp_svc_idx = info->service_idx;
     struct summary_packets_data *service_pkts_stats =
-                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, key);
+                    (struct summary_packets_data *)bpf_map_lookup_elem(&services_packets_stats, &udp_svc_idx);
     if(service_pkts_stats) {
         service_pkts_stats->total_packets++;
         service_pkts_stats->prepared_packets++;
@@ -986,9 +976,11 @@ int balancer_handler(struct xdp_md *ctx)
                 return XDP_PASS;
 
             // Check on DDoS Attack
-            int ddos_verdict = ddos_check_v4(ip, tcp);
-            if (ddos_verdict == XDP_DROP)
-                return XDP_DROP;
+            if(!(tcp->syn && !tcp->ack)) {
+                int ddos_verdict = ddos_check_v4(ip, tcp);
+                if (ddos_verdict == XDP_DROP)
+                    return XDP_DROP;
+            }
 
 
             __u8 result = tcp_balancer_handle_v4(eth, ip, tcp, data_end);

@@ -242,11 +242,11 @@ void MetricsServer::calculateRates(const std::map<BackendInfo, MetricsData>& cur
         };
 
         m_backend_packets_per_sec->Record(
-            static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
         m_backend_bytes_per_sec->Record(
-            static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
         m_backend_syn_per_sec->Record(
-            static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
     }
 
     for (const auto& [service, currentMetric] : currentService) {
@@ -262,11 +262,11 @@ void MetricsServer::calculateRates(const std::map<BackendInfo, MetricsData>& cur
         };
 
         m_service_packets_per_sec->Record(
-            static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.total_packets - prev.total_packets) / elapsed, labels);
         m_service_bytes_per_sec->Record(
-            static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.total_bytes - prev.total_bytes) / elapsed, labels);
         m_service_syn_per_sec->Record(
-            static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
+            1.5 * static_cast<double>(currentMetric.tcp_syn_packets - prev.tcp_syn_packets) / elapsed, labels);
     }
 }
 
